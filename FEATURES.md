@@ -5,16 +5,16 @@ This document lists what the app does today. For setup and run instructions, see
 ## Authentication and shell
 
 - **Firebase Authentication** in the browser: sign in with **email and password** (log in or **register** via `POST /api/auth/register`, which always assigns role **user** and returns a custom token) or **Google**. Optional **account linking** when the same email exists on another provider.
-- **Protected routes**: the home “stranger” experience, **Groups**, and **User management** require a signed-in user; unauthenticated visitors see the auth screen.
+- **Protected routes**: the home **random match** experience, **Groups**, and **User management** require a signed-in user; unauthenticated visitors see the auth screen.
 - **Global UI**: loading state during auth bootstrap, **toast** notifications for errors and important events (including **info** toasts for group join activity).
 - **API and Socket access**: the client sends a Firebase **ID token** on HTTP (`Authorization: Bearer …`) and on the Socket.io handshake. The backend verifies tokens with Firebase Admin and never stores passwords.
 
-## Stranger match (home, `/`)
+## Pulkiss home (random match, `/`)
 
 - **Random 1:1 matching**: join a **queue**; when two different users are waiting, the server pairs them and starts a **match** session.
 - **WebRTC video and audio** between the two peers, using signaling over Socket.io (`rtc:offer`, `rtc:answer`, `rtc:ice`). ICE servers can be configured on the API (default includes a public STUN server).
 - **In-match text chat** (per match, not persisted after the call ends; messages are relayed through the server).
-- **End call / leave queue**; **“Next”** to skip the current stranger and return both parties to a state where they can search again.
+- **End call / leave queue**; **“Next”** to skip the current match and return both parties to a state where they can search again.
 - **Presence count**: number of **connected, authenticated** sockets (for this server process) shown on the room; updates live and via `GET /api/presence`.
 - **Disconnect handling**: if a peer leaves or disconnects, the other user is notified and the match ends.
 

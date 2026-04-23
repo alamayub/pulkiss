@@ -52,9 +52,6 @@ export function GroupsListPage() {
       <header className={styles.header}>
         <h1>Groups</h1>
         <div className={styles.actions}>
-          <Link to="/" className={styles.linkBtn}>
-            Stranger match
-          </Link>
           <Link to="/groups/new" className={styles.primary}>
             Create group
           </Link>

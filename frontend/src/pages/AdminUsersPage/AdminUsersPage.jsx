@@ -206,7 +206,7 @@ export function AdminUsersPage({ user, isFullAdmin }) {
             Refresh list
           </button>
           <Link to="/" className={styles.linkBtn}>
-            Back to match
+            Back to Pulkiss
           </Link>
           <button type="button" className={styles.secondary} onClick={() => void onLogout()}>
             Log out

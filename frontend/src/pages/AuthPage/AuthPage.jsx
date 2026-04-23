@@ -213,7 +213,7 @@ export function AuthPage() {
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
-        <h1>Stranger match</h1>
+        <h1>Sign in</h1>
         <p className={styles.muted}>
           Log in with email or Google. If you already use one sign-in method for an email, the app can link the other
           after you confirm (same email). New accounts register with full name; new users get the default role{" "}

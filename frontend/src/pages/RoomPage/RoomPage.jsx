@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { signOut } from "firebase/auth";
-import { getFirebaseAuth } from "../../lib/firebase";
 import { fetchPresenceCount } from "../../lib/api";
 import { setOnlineCount } from "../../app/roomSlice";
 import { addToast } from "../../app/uiSlice";
 import { useSessionSocket } from "../../hooks/useSessionSocket";
 import { useStrangerCall } from "../../hooks/useStrangerCall";
-import { canAccessUserManagement } from "../../lib/admin";
 import styles from "./RoomPage.module.scss";
 
 /**
@@ -26,11 +22,11 @@ export function RoomPage({ user }) {
       const reason = evt?.reason;
       if (reason === "next") {
         dispatch(
-          addToast({ type: "warning", message: "Stranger skipped to the next person. Your chat and call ended." })
+          addToast({ type: "warning", message: "Your match skipped to the next person. Your chat and call ended." })
         );
       } else if (reason === "peer-disconnected") {
         dispatch(
-          addToast({ type: "warning", message: "Stranger disconnected. The call and chat were closed." })
+          addToast({ type: "warning", message: "Your match disconnected. The call and chat were closed." })
         );
       } else {
         dispatch(addToast({ type: "warning", message: "The call ended." }));
@@ -51,7 +47,6 @@ export function RoomPage({ user }) {
     next,
     sendMessage,
     toggleVideo,
-    endLocalMedia,
   } = useStrangerCall(socket, localRef, remoteRef, { onMatchEnd });
   const [chatInput, setChatInput] = useState("");
 
@@ -75,43 +70,12 @@ export function RoomPage({ user }) {
     };
   }, [socket, dispatch]);
 
-  const onLogout = async () => {
-    if (socket?.connected) {
-      socket.emit("queue:leave");
-      socket.disconnect();
-    }
-    endLocalMedia();
-    const auth = getFirebaseAuth();
-    await signOut(auth);
-  };
-
-  const display =
-    user.displayName ||
-    user.email ||
-    user.phoneNumber ||
-    user.uid.slice(0, 8);
-
   return (
     <div className={styles.wrap}>
       <header className={styles.top}>
-        <div>
-          <h1>Stranger match</h1>
-          <p className={styles.muted}>
-            Signed in as <strong>{display}</strong>
-          </p>
-        </div>
-        <div className={styles.topRight}>
-          <Link to="/groups" className={styles.adminLink}>
-            Groups
-          </Link>
-          {canAccessUserManagement(user) && (
-            <Link to="/admin" className={styles.adminLink}>
-              User management
-            </Link>
-          )}
-          <div className={styles.badge}>
-            <span>Online</span> <strong>{online}</strong>
-          </div>
+        <h1 className={styles.roomTitle}>Match</h1>
+        <div className={styles.badge} title="Users currently connected to this app">
+          <span>Online</span> <strong>{online}</strong>
         </div>
       </header>
 
@@ -146,9 +110,6 @@ export function RoomPage({ user }) {
         >
           {videoEnabled ? "Video on" : "Video off"}
         </button>
-        <button type="button" className={styles.secondary} onClick={() => void onLogout()}>
-          Log out
-        </button>
       </div>
 
       <div className={styles.videos}>
@@ -157,7 +118,7 @@ export function RoomPage({ user }) {
           <video ref={localRef} className={styles.vid} playsInline autoPlay muted />
         </div>
         <div>
-          <p className={styles.label}>Stranger</p>
+          <p className={styles.label}>Match</p>
           <video ref={remoteRef} className={styles.vid} playsInline autoPlay />
         </div>
       </div>

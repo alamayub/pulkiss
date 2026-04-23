@@ -17,7 +17,7 @@ function needsNewLocalStream(stream) {
  */
 export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
   const { onMatchEnd } = options;
-  const [searchStatus, setSearchStatus] = useState("Click Start to look for a stranger.");
+  const [searchStatus, setSearchStatus] = useState("Click Start to look for a match.");
   const [inQueue, setInQueue] = useState(false);
   const [inCall, setInCall] = useState(false);
   const [canChat, setCanChat] = useState(false);
@@ -153,7 +153,7 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
       if (reason === "next") {
         setSearchStatus("Partner clicked Next. Click Start to search again.");
       } else if (reason === "peer-disconnected") {
-        setSearchStatus("Stranger disconnected.");
+        setSearchStatus("Your match disconnected.");
       } else {
         setSearchStatus("Call ended.");
       }
@@ -187,7 +187,7 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
         setInCall(false);
         setCanChat(false);
         endMatchUi();
-        setSearchStatus("Click Start to look for a stranger.");
+        setSearchStatus("Click Start to look for a match.");
         return;
       }
 
@@ -239,6 +239,26 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
   );
 
   useEffect(() => {
+    return () => {
+      try {
+        if (socket?.connected) {
+          socket.emit("queue:leave");
+        }
+      } catch {
+        /* empty */
+      }
+      closePeer();
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
+      }
+      if (localRef.current) {
+        localRef.current.srcObject = null;
+      }
+    };
+  }, [socket, closePeer, localRef]);
+
+  useEffect(() => {
     if (!socket) {
       return undefined;
     }
@@ -282,7 +302,7 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     if (inQueue) return;
     if (inCall) return;
     setInQueue(true);
-    setSearchStatus("Looking for a stranger…");
+    setSearchStatus("Looking for a match…");
     try {
       if (needsNewLocalStream(localStreamRef.current)) {
         if (localStreamRef.current) {

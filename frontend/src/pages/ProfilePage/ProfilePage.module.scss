@@ -1,0 +1,88 @@
+.wrap {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 2rem;
+  color: var(--text);
+}
+
+h1 {
+  margin: 0 0 0.35rem 0;
+}
+
+.sub {
+  margin: 0 0 1.25rem 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.1rem 1.15rem;
+  margin-bottom: 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.card h2 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+}
+
+.meta {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  label {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  input {
+    width: 100%;
+    padding: 0.55rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    box-sizing: border-box;
+  }
+}
+
+.row {
+  margin-top: 0.65rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.primary {
+  cursor: pointer;
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.note {
+  margin: 0.75rem 0 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
