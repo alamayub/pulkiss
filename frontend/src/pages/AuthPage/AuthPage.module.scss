@@ -45,6 +45,41 @@
   }
 }
 
+.tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+}
+
+.tab,
+.tabActive {
+  cursor: pointer;
+  flex: 1;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.tabActive {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.select {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+}
+
 .form {
   display: flex;
   flex-direction: column;
@@ -100,5 +135,35 @@
   background: #fff;
   color: #1f1f1f;
   font-weight: 500;
+}
+
+.linkForm {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  label {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  input {
+    width: 100%;
+    padding: 0.55rem 0.65rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+  }
+}
+
+.linkHelp {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 0.35rem 0;
+  line-height: 1.4;
 }
 

@@ -3,7 +3,7 @@ import { createSlice } from "@reduxjs/toolkit";
 /**
  * @typedef {Object} ToastItem
  * @property {string} id
- * @property {"error" | "warning" | "success"} type
+ * @property {"error" | "warning" | "success" | "info"} type
  * @property {string} message
  */
 

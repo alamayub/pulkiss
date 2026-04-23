@@ -4,9 +4,9 @@ This document lists what the app does today. For setup and run instructions, see
 
 ## Authentication and shell
 
-- **Firebase Authentication** in the browser: sign in with **email and password** (register or sign in) or **Google**.
-- **Protected routes**: the home “stranger” experience, **Groups**, and **Admin** require a signed-in user; unauthenticated visitors see the auth screen.
-- **Global UI**: loading state during auth bootstrap, **toast** notifications for errors and important events.
+- **Firebase Authentication** in the browser: sign in with **email and password** (log in or **register** via `POST /api/auth/register`, which always assigns role **user** and returns a custom token) or **Google**. Optional **account linking** when the same email exists on another provider.
+- **Protected routes**: the home “stranger” experience, **Groups**, and **User management** require a signed-in user; unauthenticated visitors see the auth screen.
+- **Global UI**: loading state during auth bootstrap, **toast** notifications for errors and important events (including **info** toasts for group join activity).
 - **API and Socket access**: the client sends a Firebase **ID token** on HTTP (`Authorization: Bearer …`) and on the Socket.io handshake. The backend verifies tokens with Firebase Admin and never stores passwords.
 
 ## Stranger match (home, `/`)
@@ -27,6 +27,10 @@ Groups, membership, **group chat**, and the **group YouTube player** are stored 
 - **Create a group** with a name and optional description; the creator is the **group admin**.
 - **List** groups and open a **group detail** page: members, role (admin or member), leave.
 - **Join request flow** (for non-members): request to join → **admin accepts or rejects** → on accept, the user becomes a member.
+- **Real-time toasts (Socket.io)** for join activity when the user has an authenticated socket:
+  - **Group admins** get an **info** toast when someone **requests** to join (with requester name and group name).
+  - The **requesting user** gets a **success** toast if the request was **accepted**, or a **warning** toast if it was **rejected** (with group name).
+  - When a member **leaves** (but the group still exists), **remaining members** get an **info** toast with who left and the group name.
 - **Admins** can **remove** other members. **Any member** can **leave** the group.
 - If the **last admin** leaves and others remain, a member is **promoted** to admin. If the **last** member **leaves**, the group is **deleted**.
 
@@ -43,17 +47,17 @@ Groups, membership, **group chat**, and the **group YouTube player** are stored 
 - **Real-time sync** over Socket.io (`group:player:subscribe` / `group:player:state` / `group:player:command`); all members in the group player room receive state updates.
 - **UI**: embedded YouTube player, **queue** with “on air” indicator, **link to open on YouTube** for admins, **progress bar** with current and total time (YouTube-style bar for the admin, read-only for others) when a video is active.
 
-## Admin users (`/admin`)
+## User management (`/admin`)
 
-- **Single allowed admin email** (configured in backend and optionally matched on the frontend) can open the admin area.
+- **Full admin** (configured **admin email** on the backend, optionally `VITE_ADMIN_EMAIL` on the frontend) can **list** Firebase users, **edit** profile fields and disabled state, and **delete** users (not your own account from that screen).
+- **Moderators** (Firebase custom claim `role: moderator`) can open the same area to **list** users and **create** new users with a password and an assignable **role** (see `STAFF_CREATE_USER_ROLES` on the server). Only the configured admin email may **edit**, **disable**, or **delete** accounts.
 - **Paginated list** of Firebase Auth users: email, display name, phone, disabled state, sign-in metadata, and more (as returned by the admin API).
-- **Edit** (in the UI): display name, email, and **disabled** state. The **API** also accepts `phoneNumber` and `photoURL` for clients that send them.
-- **Delete** a user. The UI **blocks deleting your own** account from that screen.
-- **In-app “online” hints** in the admin list are tied to **this server’s** live socket registry, not to Firebase’s global online state.
+- **In-app “online” hints** in the list are tied to **this server’s** live socket registry, not to Firebase’s global online state.
 
 ## Public HTTP endpoints (unauthenticated or minimal)
 
 - **`GET /api/health`** — health check.
+- **`POST /api/auth/register`** — create email/password account with full name (role is always **user**); returns a **custom token** for immediate sign-in.
 - **`GET /api/presence`** — current connected-socket count (for the running server).
 - **`GET /api/ice`** — WebRTC ICE server list for the client (optional TURN from env).
 

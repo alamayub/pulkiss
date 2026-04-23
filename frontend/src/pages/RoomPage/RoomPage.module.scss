@@ -104,6 +104,16 @@ h1 {
   color: #fff;
 }
 
+.videoOff {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  font-weight: 500;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
 .videos {
   display: grid;
   grid-template-columns: 1fr 1fr;

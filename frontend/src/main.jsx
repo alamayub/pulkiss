@@ -13,16 +13,23 @@ const auth = getFirebaseAuth();
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    const mapUser = (u) => ({
+    const mapUser = (u, role) => ({
       uid: u.uid,
       email: u.email,
       displayName: u.displayName,
       phoneNumber: u.phoneNumber,
       photoURL: u.photoURL,
+      role: role ?? null,
     });
-    void user.getIdToken().then(() => {
-      store.dispatch(setAuthState({ user: mapUser(user), ready: true, error: null }));
-    });
+    void user
+      .getIdTokenResult()
+      .then((id) => {
+        const role = typeof id.claims.role === "string" ? id.claims.role : null;
+        store.dispatch(setAuthState({ user: mapUser(user, role), ready: true, error: null }));
+      })
+      .catch(() => {
+        store.dispatch(setAuthState({ user: mapUser(user, null), ready: true, error: null }));
+      });
   } else {
     store.dispatch(setAuthState({ user: null, ready: true, error: null }));
   }

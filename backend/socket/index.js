@@ -192,6 +192,7 @@ function initSocket(io) {
       }
       socket.data.uid = decoded.uid;
       registerConnection(decoded);
+      socket.join(`user:${decoded.uid}`);
       presence.increment();
       socket.data.presenceCounted = true;
       io.emit("presence:count", presence.get());

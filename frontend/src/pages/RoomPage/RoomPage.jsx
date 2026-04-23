@@ -8,7 +8,7 @@ import { setOnlineCount } from "../../app/roomSlice";
 import { addToast } from "../../app/uiSlice";
 import { useSessionSocket } from "../../hooks/useSessionSocket";
 import { useStrangerCall } from "../../hooks/useStrangerCall";
-import { isAdminEmail } from "../../lib/admin";
+import { canAccessUserManagement } from "../../lib/admin";
 import styles from "./RoomPage.module.scss";
 
 /**
@@ -45,10 +45,12 @@ export function RoomPage({ user }) {
     inCall,
     canChat,
     chatLines,
+    videoEnabled,
     startSearch,
     stopSearch,
     next,
     sendMessage,
+    toggleVideo,
     endLocalMedia,
   } = useStrangerCall(socket, localRef, remoteRef, { onMatchEnd });
   const [chatInput, setChatInput] = useState("");
@@ -102,9 +104,9 @@ export function RoomPage({ user }) {
           <Link to="/groups" className={styles.adminLink}>
             Groups
           </Link>
-          {isAdminEmail(user) && (
+          {canAccessUserManagement(user) && (
             <Link to="/admin" className={styles.adminLink}>
-              User admin
+              User management
             </Link>
           )}
           <div className={styles.badge}>
@@ -133,6 +135,16 @@ export function RoomPage({ user }) {
         </button>
         <button type="button" className={styles.danger} onClick={next} disabled={!inCall}>
           Next
+        </button>
+        <button
+          type="button"
+          className={videoEnabled ? styles.secondary : styles.videoOff}
+          onClick={toggleVideo}
+          disabled={!inQueue && !inCall}
+          aria-pressed={videoEnabled}
+          title={videoEnabled ? "Turn camera off" : "Turn camera on"}
+        >
+          {videoEnabled ? "Video on" : "Video off"}
         </button>
         <button type="button" className={styles.secondary} onClick={() => void onLogout()}>
           Log out

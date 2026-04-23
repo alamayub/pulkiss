@@ -1,9 +1,16 @@
 import express from "express";
 import { getAdmin } from "../lib/firebaseAdmin.js";
+import { createAuthUser } from "../lib/createAuthUser.js";
+import { getStaffAssignableRoles } from "../lib/staffAssignableRoles.js";
 import { getPresenceForUid, listOnlineUsers } from "../lib/onlineRegistry.js";
 import { requireAdmin } from "../middleware/adminAuth.js";
+import { requireStaff } from "../middleware/staffAuth.js";
 
 const router = express.Router();
+
+const MAX_NAME = 128;
+const MIN_PASSWORD = 8;
+const MAX_PASSWORD = 128;
 
 function serializeUser(r) {
   return {
@@ -21,10 +28,72 @@ function serializeUser(r) {
 }
 
 /**
+ * Roles staff may assign when creating users (admin email or moderator).
+ * GET /api/admin/role-options
+ */
+router.get("/role-options", requireStaff, (_req, res) => {
+  return res.json({ roles: getStaffAssignableRoles() });
+});
+
+/**
+ * Create a Firebase user with a chosen role (no auto sign-in token).
+ * POST /api/admin/users  body: { email, password, fullName, role }
+ */
+router.post("/users", requireStaff, async (req, res) => {
+  const emailRaw = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  const fullName = typeof req.body?.fullName === "string" ? req.body.fullName.trim() : "";
+  const roleRaw = typeof req.body?.role === "string" ? req.body.role.trim().toLowerCase() : "";
+
+  if (!emailRaw || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
+    return res.status(400).json({ error: "Valid email is required" });
+  }
+  if (password.length < MIN_PASSWORD || password.length > MAX_PASSWORD) {
+    return res.status(400).json({ error: `Password must be ${MIN_PASSWORD}–${MAX_PASSWORD} characters` });
+  }
+  if (!fullName || fullName.length > MAX_NAME) {
+    return res.status(400).json({ error: `Full name is required (max ${MAX_NAME} characters)` });
+  }
+
+  const allowed = getStaffAssignableRoles();
+  if (!roleRaw || !allowed.includes(roleRaw)) {
+    return res.status(400).json({
+      error: `Role must be one of: ${allowed.join(", ")}`,
+      allowedRoles: allowed,
+    });
+  }
+
+  try {
+    const created = await createAuthUser({ emailRaw, password, fullName, role: roleRaw });
+    return res.status(201).json({
+      user: {
+        uid: created.uid,
+        email: created.email,
+        displayName: created.displayName,
+        role: created.role,
+      },
+    });
+  } catch (e) {
+    const code = e && typeof e === "object" && "code" in e ? String(e.code) : "";
+    if (code === "auth/email-already-exists") {
+      return res.status(409).json({ error: "An account with this email already exists" });
+    }
+    if (code === "auth/invalid-email") {
+      return res.status(400).json({ error: "Invalid email" });
+    }
+    if (code === "auth/weak-password") {
+      return res.status(400).json({ error: "Password is too weak for Firebase" });
+    }
+    console.error("admin create user", e);
+    return res.status(500).json({ error: e instanceof Error ? e.message : "Create user failed" });
+  }
+});
+
+/**
  * List users (paginated).
  * GET /api/admin/users?pageToken=...
  */
-router.get("/users", requireAdmin, async (req, res) => {
+router.get("/users", requireStaff, async (req, res) => {
   try {
     const maxResults = Math.min(Number(req.query.maxResults) || 50, 1000);
     const pageToken = req.query.pageToken ? String(req.query.pageToken) : undefined;

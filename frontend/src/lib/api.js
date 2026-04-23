@@ -1,6 +1,6 @@
 import { getFirebaseAuth } from "./firebase";
 
-function apiBase() {
+export function apiBase() {
   if (import.meta.env.VITE_API_BASE) {
     return import.meta.env.VITE_API_BASE.replace(/\/$/, "");
   }
@@ -8,6 +8,27 @@ function apiBase() {
     return "";
   }
   return window.location.origin;
+}
+
+/**
+ * Public sign-up (role is always `user` on the server).
+ * @param {{ email: string, password: string, fullName: string }} body
+ * @returns {Promise<{ customToken: string, uid: string, email: string | null, displayName: string, role: string }>}
+ */
+export async function authRegister(body) {
+  const r = await fetch(`${apiBase()}/api/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: body.email, password: body.password, fullName: body.fullName }),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const err = new Error(typeof data.error === "string" ? data.error : r.statusText || "Registration failed");
+    err.data = data;
+    err.status = r.status;
+    throw err;
+  }
+  return data;
 }
 
 export async function apiFetch(path, options = {}) {
@@ -31,6 +52,15 @@ export async function apiFetch(path, options = {}) {
     throw err;
   }
   return data;
+}
+
+/** @returns {Promise<string[]>} */
+export async function adminFetchCreateUserRoleOptions() {
+  const data = await apiFetch("/api/admin/role-options");
+  if (Array.isArray(data.roles) && data.roles.length) {
+    return data.roles.map((x) => String(x).toLowerCase());
+  }
+  return ["user", "moderator"];
 }
 
 export async function loadIceServers() {
@@ -59,6 +89,14 @@ export async function fetchPresenceCount() {
 export async function adminListUsers(pageToken) {
   const q = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : "";
   return apiFetch(`/api/admin/users${q}`);
+}
+
+/**
+ * Admin or moderator. Creates user with given role (see server STAFF_CREATE_USER_ROLES).
+ * @param {{ email: string, password: string, fullName: string, role: string }} body
+ */
+export async function adminCreateUser(body) {
+  return apiFetch("/api/admin/users", { method: "POST", body: JSON.stringify(body) });
 }
 
 /** @param {string} uid @param {Record<string, unknown>} body */

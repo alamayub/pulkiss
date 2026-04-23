@@ -119,6 +119,59 @@ h1 {
   margin: 0 0 1rem 0;
 }
 
+.successBanner {
+  color: var(--success);
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  padding: 0.65rem 0.9rem;
+  border-radius: 8px;
+  margin: 0 0 1rem 0;
+}
+
+.createPanel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.25rem;
+  background: var(--surface);
+}
+
+.createTitle {
+  font-size: 1.05rem;
+  margin: 0 0 0.35rem 0;
+}
+
+.createForm {
+  margin-top: 0.5rem;
+}
+
+.createGrid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: 1fr;
+
+  @media (min-width: 720px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+
+.fieldInput {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
 .tableWrap {
   overflow-x: auto;
   border: 1px solid var(--border);

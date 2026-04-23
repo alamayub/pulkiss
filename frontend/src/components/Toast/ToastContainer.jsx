@@ -53,7 +53,13 @@ export function ToastContainer() {
           onClick={() => dismiss(toast.id)}
         >
           <span className={styles.typeLabel} aria-hidden>
-            {toast.type === "error" ? "Error" : toast.type === "warning" ? "Warning" : "Success"}
+            {toast.type === "error"
+              ? "Error"
+              : toast.type === "warning"
+                ? "Warning"
+                : toast.type === "info"
+                  ? "Info"
+                  : "Success"}
           </span>
           {toast.message}
         </button>

@@ -390,6 +390,36 @@ export function getGroupById(groupId) {
   return groups.get(groupId) || null;
 }
 
+/**
+ * @param {string} groupId
+ * @returns {string[]} UIDs of members with role admin (for notifications).
+ */
+export function getGroupAdminUids(groupId) {
+  const mm = membersByGroup.get(groupId);
+  if (!mm) {
+    return [];
+  }
+  const out = [];
+  for (const [uid, rec] of mm) {
+    if (rec?.role === "admin") {
+      out.push(uid);
+    }
+  }
+  return out;
+}
+
+/**
+ * @param {string} groupId
+ * @returns {string[]} UIDs of all current members (for notifications).
+ */
+export function getGroupMemberUids(groupId) {
+  const mm = membersByGroup.get(groupId);
+  if (!mm) {
+    return [];
+  }
+  return [...mm.keys()];
+}
+
 export function deleteGroupCascade(groupId) {
   groups.delete(groupId);
   membersByGroup.delete(groupId);

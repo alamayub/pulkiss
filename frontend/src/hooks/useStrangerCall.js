@@ -22,6 +22,7 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
   const [inCall, setInCall] = useState(false);
   const [canChat, setCanChat] = useState(false);
   const [chatLines, setChatLines] = useState(() => /** @type {{ self: boolean, text: string }[]} */ ([]));
+  const [videoEnabled, setVideoEnabled] = useState(true);
 
   const iceServersRef = useRef([{ urls: "stun:stun.l.google.com:19302" }]);
   const localStreamRef = useRef(null);
@@ -62,6 +63,7 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     if (localRef.current) {
       localRef.current.srcObject = null;
     }
+    setVideoEnabled(true);
   }, [localRef]);
 
   const endMatchUi = useCallback(() => {
@@ -194,6 +196,11 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
       closePeer();
       clearChat();
       if (!localStreamRef.current) return;
+
+      localStreamRef.current.getVideoTracks().forEach((t) => {
+        t.enabled = true;
+      });
+      setVideoEnabled(true);
 
       const iceServers = iceServersRef.current;
       const configuration = { iceServers };
@@ -331,16 +338,30 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     [socket]
   );
 
+  const toggleVideo = useCallback(() => {
+    const stream = localStreamRef.current;
+    if (!stream) return;
+    const videos = stream.getVideoTracks();
+    if (!videos.length) return;
+    const next = !videos.some((t) => t.enabled);
+    videos.forEach((t) => {
+      t.enabled = next;
+    });
+    setVideoEnabled(next);
+  }, []);
+
   return {
     searchStatus,
     inQueue,
     inCall,
     canChat,
     chatLines,
+    videoEnabled,
     startSearch,
     stopSearch,
     next,
     sendMessage,
+    toggleVideo,
     endLocalMedia,
   };
 }

@@ -7,6 +7,7 @@ import {
   closeGroupByAdmin,
   createGroup,
   getGroupById,
+  getGroupMemberUids,
   getGroupDetailForViewer,
   getMessagesPage,
   getRole,
@@ -18,6 +19,11 @@ import {
   removeMember,
 } from "../lib/groupsStore.js";
 import { emitGroupPlayerState, emitGroupDisbanded } from "../lib/groupPlayerBroadcast.js";
+import {
+  emitGroupJoinRequestToAdmins,
+  emitGroupJoinDecisionToRequester,
+  emitGroupMemberLeftToMembers,
+} from "../lib/groupJoinNotify.js";
 
 const router = express.Router();
 const MAX_MSG = 2000;
@@ -60,6 +66,15 @@ router.post("/:groupId/join-request", requireAuth, (req, res) => {
   if (r.error === "already_pending") {
     return res.status(400).json({ error: "Request already pending" });
   }
+  const g = getGroupById(groupId);
+  if (g) {
+    emitGroupJoinRequestToAdmins({
+      groupId,
+      groupName: g.name,
+      requesterUid: req.user.uid,
+      requesterName: req.user.name || "Someone",
+    });
+  }
   return res.json({ ok: true });
 });
 
@@ -72,6 +87,15 @@ router.post("/:groupId/requests/:targetUid/accept", requireAuth, (req, res) => {
   if (r.error === "no_request") {
     return res.status(404).json({ error: "No pending request for this user" });
   }
+  const g = getGroupById(groupId);
+  if (g) {
+    emitGroupJoinDecisionToRequester({
+      targetUid,
+      groupId,
+      groupName: g.name,
+      outcome: "accepted",
+    });
+  }
   return res.json({ ok: true });
 });
 
@@ -83,6 +107,15 @@ router.post("/:groupId/requests/:targetUid/reject", requireAuth, (req, res) => {
   const r = rejectJoinRequest(groupId, targetUid);
   if (r.error === "no_request") {
     return res.status(404).json({ error: "No pending request" });
+  }
+  const g = getGroupById(groupId);
+  if (g) {
+    emitGroupJoinDecisionToRequester({
+      targetUid,
+      groupId,
+      groupName: g.name,
+      outcome: "rejected",
+    });
   }
   return res.json({ ok: true });
 });
@@ -113,6 +146,17 @@ router.delete("/:groupId/leave", requireAuth, (req, res) => {
   }
   if (r.groupDeleted) {
     return res.json({ ok: true, groupDeleted: true });
+  }
+  const g = getGroupById(groupId);
+  if (g) {
+    const remainingMemberUids = getGroupMemberUids(groupId);
+    emitGroupMemberLeftToMembers({
+      groupId,
+      groupName: g.name,
+      leaverUid: req.user.uid,
+      leaverName: req.user.name || "A member",
+      remainingMemberUids,
+    });
   }
   if (r.promotedNewAdmin) {
     return res.json({ ok: true, promotedNewAdmin: r.promotedNewAdmin });

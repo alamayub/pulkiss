@@ -1,6 +1,6 @@
 # Stranger match
 
-A split-stack app: **1:1 random video chat with text**, **in-memory groups** with **chat and synchronized YouTube watch-together**, plus an **admin** area to manage Firebase users. **See [FEATURES.md](FEATURES.md)** for a full feature list.
+A split-stack app: **1:1 random video chat with text**, **in-memory groups** with **chat and synchronized YouTube watch-together**, plus **user management** (admin and moderators) for Firebase accounts. **See [FEATURES.md](FEATURES.md)** for a full feature list.
 
 - **Backend** ([`backend/`](backend/)) — Express + Socket.io, **Firebase Admin** to verify client ID tokens. **Groups, group chat, and the group YouTube player** live in **this server’s memory** (not a database; restart clears them, and a second Node process will not see the same data). The admin user list uses the Firebase **Auth** API.
 - **Frontend** ([`frontend/`](frontend/)) — Vite, React, Redux Toolkit, SCSS, Firebase client (email/password + Google), Socket.io client.
@@ -37,14 +37,15 @@ The **backend** and **frontend** are separate npm projects: run `npm install` in
 - In **Vite dev**, you can leave `VITE_API_BASE` empty: the dev server **proxies** `/api` and `/socket.io` to the backend (default target `http://localhost:3000` unless you set `VITE_API_BASE` to change the proxy target).
 - In **production**, if the static app and API are on the **same origin**, leave `VITE_API_BASE` empty; otherwise set it to your API base URL. Build-time `VITE_*` values are embedded in the client bundle.
 
-### Admin email
+### Admin email and moderators
 
-The same person must be configured as the only admin in both:
+- **Backend** — `ADMIN_EMAIL` is the **full** admin (edit/disable/delete users). See [backend/.env.example](backend/.env.example).
+- **Frontend** (optional) — `VITE_ADMIN_EMAIL` should match for the UI hint; if omitted, a code default may apply.
+- **`/admin` (user management)** is available to that admin email **or** to users with Firebase custom claim **`role: moderator`** (list + create users only for moderators; destructive actions stay admin-only). Optional **`STAFF_CREATE_USER_ROLES`** controls which roles staff may assign when creating users.
 
-- **Backend** — `ADMIN_EMAIL` (see [backend/.env.example](backend/.env.example)).
-- **Frontend** (optional) — `VITE_ADMIN_EMAIL`; if omitted, the app falls back to a default in code. Only that user can use **`/admin`**.
+**Admin API** (Bearer token): `GET/POST` under `/api/admin/users` and related routes for staff; `PATCH/DELETE` require the configured admin email. See [FEATURES.md](FEATURES.md) and [backend/routes/adminUsers.js](backend/routes/adminUsers.js).
 
-**Admin API** (Bearer token + matching user email): `GET/PATCH/DELETE` under `/api/admin/users` (see [FEATURES.md](FEATURES.md) and [backend/routes/adminUsers.js](backend/routes/adminUsers.js)).
+**Public registration**: `POST /api/auth/register` creates an email/password Firebase user (role **user**) and returns a custom token for sign-in (see [backend/routes/auth.js](backend/routes/auth.js)).
 
 ## Run locally (two terminals)
 
@@ -87,6 +88,8 @@ Common **REST** uses (all authenticated unless noted):
 - Join, accept, reject, remove, leave, messages, and **add YouTube URL to the group player queue**
 
 The **synchronized YouTube** state is pushed over Socket.io; see [FEATURES.md](FEATURES.md) for behavior.
+
+**Join requests and toasts**: authenticated sockets join a per-user room (`user:<uid>`). When someone requests to join a group, **group admins** receive a Socket.io event and the client shows a toast. When an admin **accepts** or **rejects** a request, the **requester** receives an event and sees a success or warning toast (no need to stay on the group page). When a member **leaves** and the group still exists, **remaining members** get a toast that names who left.
 
 `GET /api/groups/:groupId` is sent with **`Cache-Control: no-store`** to reduce stale `player` data in the browser when used together with websockets.
 

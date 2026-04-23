@@ -9,7 +9,9 @@ import * as presence from "./lib/presence.js";
 import { getIceServers } from "./lib/ice.js";
 import { initSocket } from "./socket/index.js";
 import { setGroupPlayerIo } from "./lib/groupPlayerBroadcast.js";
+import { setGroupJoinNotifyIo } from "./lib/groupJoinNotify.js";
 import adminUsersRoutes from "./routes/adminUsers.js";
+import authRoutes from "./routes/auth.js";
 import groupsRoutes from "./routes/groups.js";
 
 getAdmin();
@@ -46,6 +48,7 @@ app.get("/api/ice", (req, res) => {
   res.json({ iceServers: getIceServers() });
 });
 
+app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminUsersRoutes);
 app.use("/api/groups", groupsRoutes);
 
@@ -57,6 +60,7 @@ app.get("/api/me", async (req, res) => {
   }
   try {
     const decoded = await verifyIdToken(token);
+    const role = typeof decoded.role === "string" ? decoded.role : null;
     return res.json({
       user: {
         uid: decoded.uid,
@@ -64,6 +68,7 @@ app.get("/api/me", async (req, res) => {
         phone: decoded.phone_number || null,
         name: decoded.name || null,
         picture: decoded.picture || null,
+        role,
       },
     });
   } catch (e) {
@@ -77,6 +82,7 @@ const io = new Server(httpServer, {
 });
 
 setGroupPlayerIo(io);
+setGroupJoinNotifyIo(io);
 initSocket(io);
 
 httpServer
