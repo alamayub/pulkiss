@@ -1,0 +1,19 @@
+.wrap {
+  max-width: 32rem;
+  margin: 3rem auto;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--text);
+}
+
+h1 {
+  color: var(--danger);
+  font-size: 1.35rem;
+}
+
+.link {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--accent);
+  font-weight: 500;
+}

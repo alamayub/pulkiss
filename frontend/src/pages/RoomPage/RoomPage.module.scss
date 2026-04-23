@@ -1,0 +1,173 @@
+.wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+h1 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+}
+
+.muted {
+  color: var(--muted);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.topRight {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.adminLink {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.badge strong {
+  color: var(--success);
+}
+
+.status {
+  min-height: 1.4em;
+  color: var(--muted);
+  margin: 0 0 0.75rem 0;
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.primary,
+.secondary,
+.danger {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  font-weight: 500;
+  border: none;
+}
+
+.primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.videos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin: 0 0 0.25rem 0;
+}
+
+.vid {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  background: #000;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.chat {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.chatLog {
+  height: 200px;
+  overflow-y: auto;
+  padding: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.self {
+  color: var(--accent);
+}
+
+.chatForm {
+  display: flex;
+  gap: 0.5rem;
+  border-top: 1px solid var(--border);
+  padding: 0.5rem;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem 0.65rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+  }
+}
+
+.foot {
+  margin-top: 1.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
