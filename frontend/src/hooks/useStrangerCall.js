@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadIceServers } from "../lib/api";
 
+/** @param {MediaStream | null} stream */
+function needsNewLocalStream(stream) {
+  if (!stream) return true;
+  const tracks = stream.getTracks();
+  if (tracks.length === 0) return true;
+  return tracks.some((t) => t.readyState === "ended");
+}
+
 /**
  * @param {import("socket.io-client").Socket | null} socket
  * @param {React.RefObject<HTMLVideoElement | null>} localRef
@@ -32,13 +40,9 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     pendingRemoteOfferRef.current = null;
     if (pcRef.current) {
       try {
-        pcRef.current.getSenders().forEach((s) => {
-          try {
-            if (s.track) s.track.stop();
-          } catch {
-            /* empty */
-          }
-        });
+        // Do not stop sender tracks here: they are the same MediaStreamTracks as
+        // localStreamRef (camera/mic). Stopping them breaks the next match until
+        // a full page reload. Teardown is pc.close(); use endLocalMedia to release devices.
         pcRef.current.close();
       } catch {
         /* empty */
@@ -167,7 +171,11 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
       currentMatchIdRef.current = data.matchId;
 
       try {
-        if (!localStreamRef.current) {
+        if (needsNewLocalStream(localStreamRef.current)) {
+          if (localStreamRef.current) {
+            localStreamRef.current = null;
+            if (localRef.current) localRef.current.srcObject = null;
+          }
           const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
           localStreamRef.current = stream;
           if (localRef.current) localRef.current.srcObject = stream;
@@ -269,7 +277,13 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     setInQueue(true);
     setSearchStatus("Looking for a stranger…");
     try {
-      if (!localStreamRef.current) {
+      if (needsNewLocalStream(localStreamRef.current)) {
+        if (localStreamRef.current) {
+          localStreamRef.current = null;
+          if (localRef.current) {
+            localRef.current.srcObject = null;
+          }
+        }
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localStreamRef.current = stream;
         if (localRef.current) {
