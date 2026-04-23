@@ -24,3 +24,15 @@ export function emitGroupPlayerState(groupId) {
     _io.to(roomName(groupId)).emit("group:player:state", st);
   }
 }
+
+/**
+ * Notify all clients who joined the group player room that the group no longer exists
+ * (e.g. admin closed the group). Safe to call after the group is deleted in memory.
+ * @param {string} groupId
+ */
+export function emitGroupDisbanded(groupId) {
+  if (!_io) {
+    return;
+  }
+  _io.to(roomName(groupId)).emit("group:disbanded", { groupId: String(groupId) });
+}

@@ -4,6 +4,7 @@ import {
   acceptJoinRequest,
   addGroupPlayerQueueItem,
   addJoinRequest,
+  closeGroupByAdmin,
   createGroup,
   getGroupById,
   getGroupDetailForViewer,
@@ -16,7 +17,7 @@ import {
   rejectJoinRequest,
   removeMember,
 } from "../lib/groupsStore.js";
-import { emitGroupPlayerState } from "../lib/groupPlayerBroadcast.js";
+import { emitGroupPlayerState, emitGroupDisbanded } from "../lib/groupPlayerBroadcast.js";
 
 const router = express.Router();
 const MAX_MSG = 2000;
@@ -117,6 +118,20 @@ router.delete("/:groupId/leave", requireAuth, (req, res) => {
     return res.json({ ok: true, promotedNewAdmin: r.promotedNewAdmin });
   }
   return res.json({ ok: true });
+});
+
+/** Only the group admin may close (delete) the group for all members. */
+router.delete("/:groupId/close", requireAuth, (req, res) => {
+  const { groupId } = req.params;
+  const r = closeGroupByAdmin(groupId, req.user.uid);
+  if (r.error === "not_found") {
+    return res.status(404).json({ error: "Group not found" });
+  }
+  if (r.error === "forbidden") {
+    return res.status(403).json({ error: "Only a group admin can close the group" });
+  }
+  emitGroupDisbanded(groupId);
+  return res.json({ ok: true, groupDeleted: true });
 });
 
 router.get("/:groupId/messages", requireAuth, (req, res) => {

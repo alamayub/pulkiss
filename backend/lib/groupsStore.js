@@ -399,6 +399,23 @@ export function deleteGroupCascade(groupId) {
 }
 
 /**
+ * Permanently remove a group and all of its data (only the group admin).
+ * @param {string} groupId
+ * @param {string} adminUid
+ * @returns {{ ok: true, groupDeleted: true } | { error: string }}
+ */
+export function closeGroupByAdmin(groupId, adminUid) {
+  if (!groups.has(groupId)) {
+    return { error: "not_found" };
+  }
+  if (getRole(groupId, adminUid) !== "admin") {
+    return { error: "forbidden" };
+  }
+  deleteGroupCascade(groupId);
+  return { ok: true, groupDeleted: true };
+}
+
+/**
  * @param {string} groupId
  * @param {import("express").Request["user"]} reqUser
  */

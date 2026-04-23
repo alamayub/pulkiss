@@ -118,6 +118,11 @@ export async function groupsLeave(groupId) {
   return apiFetch(`/api/groups/${encodeURIComponent(groupId)}/leave`, { method: "DELETE" });
 }
 
+/** Only group admin. Deletes the group for everyone. */
+export async function groupsCloseGroup(groupId) {
+  return apiFetch(`/api/groups/${encodeURIComponent(groupId)}/close`, { method: "DELETE" });
+}
+
 export async function groupsListMessages(groupId, params) {
   const q = new URLSearchParams();
   if (params?.before) {

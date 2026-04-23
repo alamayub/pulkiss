@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from "react";
+import { useDispatch } from "react-redux";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   groupsGet,
@@ -7,9 +8,11 @@ import {
   groupsRejectRequest,
   groupsRemoveMember,
   groupsLeave,
+  groupsCloseGroup,
   groupsListMessages,
   groupsPostMessage,
 } from "../../lib/api";
+import { addToast } from "../../app/uiSlice";
 import { useSessionSocket } from "../../hooks/useSessionSocket";
 import { GroupYouTubePlayer } from "../../components/GroupYouTubePlayer/GroupYouTubePlayer";
 import styles from "./GroupDetailPage.module.scss";
@@ -18,6 +21,7 @@ import styles from "./GroupDetailPage.module.scss";
  * @param {{ user: { uid: string } }} props
  */
 export function GroupDetailPage({ user }) {
+  const dispatch = useDispatch();
   const { groupId } = useParams();
   const nav = useNavigate();
   const { socket } = useSessionSocket(user?.uid);
@@ -28,6 +32,7 @@ export function GroupDetailPage({ user }) {
   const [loading, setLoading] = useState(true);
   const [msgErr, setMsgErr] = useState("");
   const logRef = useRef(null);
+  const ignoreNextDisbandedRef = useRef(false);
 
   const loadDetail = useCallback(async () => {
     if (!groupId) {
@@ -158,6 +163,55 @@ export function GroupDetailPage({ user }) {
     }
   };
 
+  const onCloseGroup = async () => {
+    if (
+      !window.confirm(
+        "Close this group? It will be removed for you and all members, and the chat and watch data will be deleted on the server."
+      )
+    ) {
+      return;
+    }
+    setErr("");
+    try {
+      ignoreNextDisbandedRef.current = true;
+      setTimeout(() => {
+        ignoreNextDisbandedRef.current = false;
+      }, 3000);
+      await groupsCloseGroup(groupId);
+      dispatch(
+        addToast({ type: "success", message: "Group closed." })
+      );
+      nav("/groups");
+    } catch (e) {
+      setErr(e.data?.error || e.message);
+    }
+  };
+
+  useEffect(() => {
+    if (!socket || !groupId) {
+      return undefined;
+    }
+    const onDisbanded = (/** @type {{ groupId?: string } | null} */ payload) => {
+      if (!payload || String(payload.groupId) !== String(groupId)) {
+        return;
+      }
+      if (ignoreNextDisbandedRef.current) {
+        return;
+      }
+      dispatch(
+        addToast({
+          type: "warning",
+          message: "The group was closed by an admin. You are back on the list.",
+        })
+      );
+      nav("/groups", { replace: true });
+    };
+    socket.on("group:disbanded", onDisbanded);
+    return () => {
+      socket.off("group:disbanded", onDisbanded);
+    };
+  }, [socket, groupId, nav, dispatch]);
+
   const send = async (e) => {
     e.preventDefault();
     const t = text.trim();
@@ -219,7 +273,12 @@ export function GroupDetailPage({ user }) {
           </button>
         )}
         {!d.isMember && d.hasPendingRequest && <p className={styles.muted}>Your request is pending admin approval.</p>}
-        {d.isMember && (
+        {d.isMember && d.isAdmin && (
+          <button type="button" className={styles.danger} onClick={() => void onCloseGroup()}>
+            Close group
+          </button>
+        )}
+        {d.isMember && !d.isAdmin && (
           <button type="button" className={styles.danger} onClick={() => void onLeave()}>
             Leave group
           </button>
