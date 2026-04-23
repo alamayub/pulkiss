@@ -220,10 +220,9 @@ export function runGroupPlayerAdminCommand(groupId, action, body, adminUid) {
     }
     const idx = p.queue.findIndex((q) => q.id === c.currentItemId);
     const nextIdx = idx >= 0 ? idx + 1 : 0;
-    if (nextIdx >= p.queue.length) {
-      return { error: "no_next" };
-    }
-    const next = p.queue[nextIdx];
+    // After the last item, loop to the first (same as manual "Next" for watch-together).
+    const wrapIdx = nextIdx >= p.queue.length ? 0 : nextIdx;
+    const next = p.queue[wrapIdx];
     c.currentItemId = next.id;
     c.videoId = next.videoId;
     c.isPlaying = true;

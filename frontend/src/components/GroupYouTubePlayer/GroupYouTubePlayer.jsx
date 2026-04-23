@@ -179,85 +179,6 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
   }, [yReady, cur?.videoId]);
 
   useEffect(() => {
-    if (!groupId) {
-      return undefined;
-    }
-    const id = domIdRef.current;
-    let dead = false;
-
-    (async () => {
-      try {
-        await loadYouTubeIframeAPI();
-        if (dead || !window.YT) {
-          return;
-        }
-        playerRef.current = new window.YT.Player(id, {
-          width: "100%",
-          height: "100%",
-          playerVars: {
-            controls: 0,
-            rel: 0,
-            modestbranding: 1,
-            playsinline: 1,
-            disablekb: 1,
-          },
-          events: {
-            onReady: (ev) => {
-              if (dead) {
-                return;
-              }
-              setYReady(true);
-              if (ev.target.getDuration) {
-                const d = ev.target.getDuration();
-                if (d && Number.isFinite(d) && d > 0) {
-                  setDurationSec(d);
-                }
-              }
-            },
-            onStateChange: (e) => {
-              if (window.YT && e.data === window.YT.PlayerState.PLAYING) {
-                const t = e.target;
-                if (t.getDuration) {
-                  const d = t.getDuration();
-                  if (d && Number.isFinite(d) && d > 0) {
-                    setDurationSec(d);
-                  }
-                }
-              }
-            },
-            onError: (e) => {
-              setLocalErr("This video may not be embeddable. Try another link.");
-              if ([2, 5, 100, 101, 150].includes(e.data)) {
-                dispatch(
-                  addToast({ type: "error", message: "This YouTube video cannot be played here. Try another link." })
-                );
-              }
-            },
-          },
-        });
-      } catch {
-        if (!dead) {
-          setLocalErr("Could not load the YouTube player.");
-        }
-      }
-    })();
-
-    return () => {
-      dead = true;
-      setYReady(false);
-      if (playerRef.current && typeof playerRef.current.destroy === "function") {
-        try {
-          playerRef.current.destroy();
-        } catch {
-          /* empty */
-        }
-      }
-      playerRef.current = null;
-      lastVideoIdRef.current = null;
-    };
-  }, [groupId, dispatch]);
-
-  useEffect(() => {
     if (!socket || !groupId || !user) {
       return undefined;
     }
@@ -302,6 +223,114 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
     },
     [socket, groupId, dispatch]
   );
+
+  const sendCmdRef = useRef(/** @type {((a: string, b?: object) => void) | null} */(null));
+  const isAdminRef = useRef(/** @type {boolean} */ (false));
+  const queueLengthRef = useRef(0);
+  const lastVideoEndedAdvanceRef = useRef(0);
+  sendCmdRef.current = sendCmd;
+  isAdminRef.current = isAdmin;
+  queueLengthRef.current = q.length;
+
+  useEffect(() => {
+    if (!groupId) {
+      return undefined;
+    }
+    const id = domIdRef.current;
+    let dead = false;
+
+    (async () => {
+      try {
+        await loadYouTubeIframeAPI();
+        if (dead || !window.YT) {
+          return;
+        }
+        playerRef.current = new window.YT.Player(id, {
+          width: "100%",
+          height: "100%",
+          playerVars: {
+            controls: 0,
+            rel: 0,
+            modestbranding: 1,
+            playsinline: 1,
+            disablekb: 1,
+          },
+          events: {
+            onReady: (ev) => {
+              if (dead) {
+                return;
+              }
+              setYReady(true);
+              if (ev.target.getDuration) {
+                const d = ev.target.getDuration();
+                if (d && Number.isFinite(d) && d > 0) {
+                  setDurationSec(d);
+                }
+              }
+            },
+            onStateChange: (e) => {
+              if (!window.YT) {
+                return;
+              }
+              if (e.data === window.YT.PlayerState.PLAYING) {
+                const t = e.target;
+                if (t.getDuration) {
+                  const d = t.getDuration();
+                  if (d && Number.isFinite(d) && d > 0) {
+                    setDurationSec(d);
+                  }
+                }
+                return;
+              }
+              if (e.data === window.YT.PlayerState.ENDED) {
+                if (!isAdminRef.current) {
+                  return;
+                }
+                if (queueLengthRef.current < 1) {
+                  return;
+                }
+                const now = Date.now();
+                if (now - lastVideoEndedAdvanceRef.current < 1200) {
+                  return;
+                }
+                lastVideoEndedAdvanceRef.current = now;
+                const sc = sendCmdRef.current;
+                if (sc) {
+                  sc("next");
+                }
+              }
+            },
+            onError: (e) => {
+              setLocalErr("This video may not be embeddable. Try another link.");
+              if ([2, 5, 100, 101, 150].includes(e.data)) {
+                dispatch(
+                  addToast({ type: "error", message: "This YouTube video cannot be played here. Try another link." })
+                );
+              }
+            },
+          },
+        });
+      } catch {
+        if (!dead) {
+          setLocalErr("Could not load the YouTube player.");
+        }
+      }
+    })();
+
+    return () => {
+      dead = true;
+      setYReady(false);
+      if (playerRef.current && typeof playerRef.current.destroy === "function") {
+        try {
+          playerRef.current.destroy();
+        } catch {
+          /* empty */
+        }
+      }
+      playerRef.current = null;
+      lastVideoIdRef.current = null;
+    };
+  }, [groupId, dispatch]);
 
   const onAdd = async (e) => {
     e.preventDefault();
