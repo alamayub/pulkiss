@@ -1,8 +1,14 @@
 .boot {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: var(--page-pad);
+  padding-top: max(var(--page-pad), env(safe-area-inset-top, 0px));
+  padding-bottom: max(var(--page-pad), env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  text-align: center;
   background: var(--bg);
   color: var(--text);
 }

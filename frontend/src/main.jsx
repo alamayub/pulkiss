@@ -4,10 +4,13 @@ import { BrowserRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { onAuthStateChanged } from "firebase/auth";
 import { getFirebaseAuth } from "./lib/firebase";
+import { initTheme } from "./lib/theme";
 import { store } from "./app/store";
 import { setAuthState } from "./app/authSlice";
 import App from "./App";
 import "./index.scss";
+
+initTheme();
 
 const auth = getFirebaseAuth();
 

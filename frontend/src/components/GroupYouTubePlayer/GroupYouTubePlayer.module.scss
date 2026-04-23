@@ -35,7 +35,7 @@
 .playerEl {
   width: 100%;
   aspect-ratio: 16 / 9;
-  max-height: 50vh;
+  max-height: min(50vh, 70vw);
 }
 
 .addRow {
@@ -47,8 +47,9 @@
 
 .addRow input {
   flex: 1;
-  min-width: 12rem;
+  min-width: min(100%, 10rem);
   padding: 0.5rem 0.6rem;
+  min-height: 2.5rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--bg);
@@ -62,7 +63,7 @@
   border-radius: 8px;
   padding: 0.55rem 0.9rem;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font: inherit;
   font-weight: 500;
 }

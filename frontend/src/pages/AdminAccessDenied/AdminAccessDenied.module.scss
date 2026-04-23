@@ -1,9 +1,11 @@
 .wrap {
   max-width: 32rem;
+  width: 100%;
   margin: 3rem auto;
-  padding: 1.5rem;
+  padding: var(--page-pad);
   text-align: center;
   color: var(--text);
+  box-sizing: border-box;
 }
 
 h1 {

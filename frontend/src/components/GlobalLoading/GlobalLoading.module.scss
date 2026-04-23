@@ -7,7 +7,10 @@
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  background: rgba(15, 20, 25, 0.75);
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  box-sizing: border-box;
+  background: var(--overlay-scrim);
   backdrop-filter: blur(3px);
 }
 

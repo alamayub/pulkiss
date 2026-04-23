@@ -1,7 +1,9 @@
 .wrap {
   max-width: 900px;
+  width: 100%;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: var(--page-pad);
+  box-sizing: border-box;
 }
 
 .top {
@@ -90,13 +92,14 @@ h1 {
   cursor: pointer;
   border-radius: 8px;
   padding: 0.55rem 0.9rem;
+  min-height: 2.5rem;
   font-weight: 500;
   border: none;
 }
 
 .primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .secondary {
@@ -107,13 +110,14 @@ h1 {
 
 .danger {
   background: var(--danger);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .videoOff {
   cursor: pointer;
   border-radius: 8px;
   padding: 0.55rem 0.9rem;
+  min-height: 2.5rem;
   font-weight: 500;
   background: var(--surface);
   color: var(--muted);
@@ -122,13 +126,9 @@ h1 {
 
 .videos {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   gap: 0.75rem;
   margin-bottom: 1rem;
-
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
-  }
 }
 
 .label {
@@ -167,18 +167,33 @@ h1 {
 
 .chatForm {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   border-top: 1px solid var(--border);
   padding: 0.5rem;
 
   input {
-    flex: 1;
+    flex: 1 1 10rem;
     min-width: 0;
     padding: 0.5rem 0.65rem;
+    min-height: 2.5rem;
     border-radius: 6px;
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--text);
+  }
+
+  button {
+    flex: 0 0 auto;
+    min-height: 2.5rem;
+  }
+
+  @media (max-width: 420px) {
+    flex-direction: column;
+
+    button {
+      width: 100%;
+    }
   }
 }
 
@@ -186,6 +201,8 @@ h1 {
   margin-top: 1.5rem;
   font-size: 0.8rem;
   color: var(--muted);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .legalNav {

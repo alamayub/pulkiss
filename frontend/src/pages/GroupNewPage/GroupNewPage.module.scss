@@ -1,8 +1,10 @@
 .wrap {
   max-width: 32rem;
+  width: 100%;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: var(--page-pad);
   color: var(--text);
+  box-sizing: border-box;
 }
 
 h1 {
@@ -51,7 +53,7 @@ h1 {
 .primary {
   padding: 0.55rem 1rem;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border: none;
   border-radius: 8px;
   font: inherit;

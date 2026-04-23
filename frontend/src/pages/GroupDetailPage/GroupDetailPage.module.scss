@@ -1,16 +1,28 @@
 .wrap {
   max-width: 40rem;
+  width: 100%;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: var(--page-pad);
   color: var(--text);
+  box-sizing: border-box;
 }
 
 .top {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
   margin-bottom: 1rem;
+
+  @media (max-width: 520px) {
+    flex-direction: column;
+    align-items: stretch;
+
+    .back {
+      align-self: flex-start;
+    }
+  }
 }
 
 h1 {
@@ -67,6 +79,7 @@ h2 {
   font: inherit;
   border-radius: 6px;
   padding: 0.45rem 0.75rem;
+  min-height: 2.35rem;
   cursor: pointer;
   margin-right: 0.4rem;
   margin-top: 0.4rem;
@@ -74,7 +87,7 @@ h2 {
 
 .primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border: none;
 }
 
@@ -86,7 +99,7 @@ h2 {
 
 .small {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border: none;
   font-size: 0.85rem;
 }
@@ -117,8 +130,10 @@ h2 {
 
 .reqItem {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
   padding: 0.4rem 0;
   border-bottom: 1px solid var(--border);
 }
@@ -176,15 +191,29 @@ h2 {
 
 .chatForm {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
 }
 
 .chatForm input {
-  flex: 1;
+  flex: 1 1 10rem;
+  min-width: 0;
+  min-height: 2.5rem;
   padding: 0.5rem;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
   font: inherit;
+}
+
+@media (max-width: 420px) {
+  .chatForm {
+    flex-direction: column;
+  }
+
+  .chatForm button,
+  .chatForm input[type="submit"] {
+    width: 100%;
+  }
 }
