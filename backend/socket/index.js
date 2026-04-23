@@ -131,6 +131,42 @@ function initSocket(io) {
   }
 
   async function onConnection(socket) {
+    // Register disconnect before any await. If the client closes the tab while
+    // verifyIdToken is in flight, disconnect still runs; otherwise we can mark
+    // them online after the socket is already gone and never unregister.
+    socket.on("disconnect", () => {
+      const uid = socket.data.uid;
+      if (uid) {
+        unregisterConnection(uid);
+      }
+      removeFromQueue(socket.id);
+      const mid = socket.data.matchId;
+      if (mid) {
+        const m = matches.get(mid);
+        if (m) {
+          const peerId = getPeerSocketId(m, socket.id);
+          matches.delete(mid);
+          for (const entry of [m.a, m.b]) {
+            const sk = entry.socketId;
+            const s2 = io.sockets.sockets.get(sk);
+            if (s2) {
+              s2.data.matchId = undefined;
+              s2.data.inMatch = false;
+              void uidToMatchId.delete(s2.data.uid);
+            }
+          }
+          if (peerId) {
+            io.to(peerId).emit("match:ended", { reason: "peer-disconnected" });
+          }
+        }
+      }
+      if (socket.data.presenceCounted) {
+        socket.data.presenceCounted = false;
+        presence.decrement();
+        io.emit("presence:count", presence.get());
+      }
+    });
+
     try {
       const token =
         (socket.handshake.auth && socket.handshake.auth.token) ||
@@ -151,9 +187,13 @@ function initSocket(io) {
         err.data = { code: "UNAUTHORIZED" };
         throw err;
       }
+      if (!socket.connected) {
+        return;
+      }
       socket.data.uid = decoded.uid;
       registerConnection(decoded);
       presence.increment();
+      socket.data.presenceCounted = true;
       io.emit("presence:count", presence.get());
     } catch (e) {
       console.warn("Socket auth failed", e.message);
@@ -341,36 +381,6 @@ function initSocket(io) {
         return;
       }
       emitGroupPlayerState(groupId);
-    });
-
-    socket.on("disconnect", () => {
-      const uid = socket.data.uid;
-      if (uid) {
-        unregisterConnection(uid);
-      }
-      removeFromQueue(socket.id);
-      const mid = socket.data.matchId;
-      if (mid) {
-        const m = matches.get(mid);
-        if (m) {
-          const peerId = getPeerSocketId(m, socket.id);
-          matches.delete(mid);
-          for (const entry of [m.a, m.b]) {
-            const sk = entry.socketId;
-            const s2 = io.sockets.sockets.get(sk);
-            if (s2) {
-              s2.data.matchId = undefined;
-              s2.data.inMatch = false;
-              void uidToMatchId.delete(s2.data.uid);
-            }
-          }
-          if (peerId) {
-            io.to(peerId).emit("match:ended", { reason: "peer-disconnected" });
-          }
-        }
-      }
-      presence.decrement();
-      io.emit("presence:count", presence.get());
     });
   }
 
