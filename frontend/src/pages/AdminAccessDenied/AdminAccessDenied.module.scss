@@ -1,5 +1,5 @@
 .wrap {
-  max-width: 32rem;
+  max-width: var(--container-max);
   width: 100%;
   margin: 3rem auto;
   padding: var(--page-pad);

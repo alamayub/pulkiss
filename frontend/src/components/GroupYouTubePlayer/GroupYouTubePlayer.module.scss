@@ -13,7 +13,7 @@
 .playerWrap {
   position: relative;
   width: 100%;
-  max-width: 960px;
+  max-width: var(--container-max);
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -62,7 +62,7 @@
   border: none;
   border-radius: 8px;
   padding: 0.55rem 0.9rem;
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--on-accent);
   font: inherit;
   font-weight: 500;
@@ -97,7 +97,7 @@
   align-items: center;
   gap: 0.6rem;
   width: 100%;
-  max-width: 960px;
+  max-width: var(--container-max);
   font-variant-numeric: tabular-nums;
   font-size: 0.82rem;
   user-select: none;

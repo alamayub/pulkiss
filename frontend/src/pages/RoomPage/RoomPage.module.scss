@@ -1,5 +1,5 @@
 .wrap {
-  max-width: 900px;
+  max-width: var(--container-max);
   width: 100%;
   margin: 0 auto;
   padding: var(--page-pad);
@@ -98,7 +98,7 @@ h1 {
 }
 
 .primary {
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--on-accent);
 }
 
@@ -162,7 +162,7 @@ h1 {
 }
 
 .self {
-  color: var(--accent);
+  color: var(--brand-magenta);
 }
 
 .chatForm {

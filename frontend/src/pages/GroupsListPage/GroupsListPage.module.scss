@@ -1,5 +1,5 @@
 .wrap {
-  max-width: 42rem;
+  max-width: var(--container-max);
   width: 100%;
   margin: 0 auto;
   padding: var(--page-pad);
@@ -42,7 +42,7 @@ h1 {
 }
 
 .primary {
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--on-accent);
   border: none;
 }

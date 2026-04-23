@@ -1,5 +1,5 @@
 .wrap {
-  max-width: 32rem;
+  max-width: var(--container-max);
   width: 100%;
   margin: 0 auto;
   padding: var(--page-pad);
@@ -72,7 +72,7 @@ h1 {
   padding: 0.55rem 1rem;
   border-radius: 8px;
   border: none;
-  background: var(--accent);
+  background: var(--accent-solid);
   color: var(--on-accent);
   font-weight: 600;
   font-size: 0.9rem;

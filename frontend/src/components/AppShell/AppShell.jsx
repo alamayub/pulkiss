@@ -8,6 +8,8 @@ import { canAccessUserManagement } from "../../lib/admin";
 import { setTheme, THEME_STORAGE_KEY } from "../../lib/theme";
 import styles from "./AppShell.module.scss";
 
+const NAV_MEDIA = "(min-width: 721px)";
+
 function navClass({ isActive }) {
   return isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink;
 }
@@ -47,6 +49,21 @@ function MoonIcon() {
   );
 }
 
+function MenuIcon({ open }) {
+  if (open) {
+    return (
+      <svg className={styles.menuIcon} viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={styles.menuIcon} viewBox="0 0 24 24" aria-hidden fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /**
  * Global chrome: sticky header with primary nav and a footer. Renders child routes via `<Outlet />`.
  */
@@ -54,11 +71,14 @@ export function AppShell() {
   const { user, ready } = useSelector((s) => s.auth);
   const location = useLocation();
   const { socket } = useSessionSocket(user?.uid ?? null);
+  const [navOpen, setNavOpen] = useState(false);
   const [colorMode, setColorMode] = useState(() =>
     typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light"
       ? "light"
       : "dark"
   );
+
+  const closeNav = useCallback(() => setNavOpen(false), []);
 
   const toggleColorMode = useCallback(() => {
     const next = colorMode === "dark" ? "light" : "dark";
@@ -81,8 +101,47 @@ export function AppShell() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const display =
-    user?.displayName || user?.email || user?.phoneNumber || (user?.uid ? user.uid.slice(0, 8) : "");
+  useEffect(() => {
+    closeNav();
+  }, [location.pathname, closeNav]);
+
+  useEffect(() => {
+    const mq = window.matchMedia(NAV_MEDIA);
+    const onChange = () => {
+      if (mq.matches) {
+        setNavOpen(false);
+      }
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!navOpen) {
+      return undefined;
+    }
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setNavOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navOpen]);
+
+  useEffect(() => {
+    if (!navOpen) {
+      document.body.style.overflow = "";
+      return undefined;
+    }
+    const mq = window.matchMedia("(max-width: 720px)");
+    if (mq.matches) {
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [navOpen]);
 
   const onSignOut = async () => {
     try {
@@ -99,61 +158,65 @@ export function AppShell() {
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
-        <Link to="/" className={styles.brand}>
-          Pulkiss
-        </Link>
-        <nav className={styles.nav} aria-label="Main">
-          <NavLink to="/" className={navClass} end>
-            Home
-          </NavLink>
-          <NavLink to="/about" className={navClass}>
-            About
-          </NavLink>
-          <NavLink to="/privacy" className={navClass}>
-            Privacy
-          </NavLink>
-          {ready && user ? (
-            <>
-              <NavLink to="/groups" className={navClass}>
-                Groups
-              </NavLink>
-              <NavLink to="/profile" className={navClass}>
-                Profile
-              </NavLink>
-              {canAccessUserManagement(user) ? (
-                <NavLink to="/admin" className={navClass}>
-                  User admin
-                </NavLink>
-              ) : null}
-            </>
-          ) : null}
-        </nav>
-        <div className={styles.userRow}>
-          {ready && user ? (
-            <span className={styles.userMeta} title={display}>
-              {display}
-            </span>
-          ) : ready ? (
-            <span className={styles.userMeta}>Not signed in</span>
-          ) : (
-            <span className={styles.userMeta}>Loading…</span>
-          )}
-          <div className={styles.userActions}>
-            <button
-              type="button"
-              className={styles.themeToggle}
-              onClick={toggleColorMode}
-              aria-label={colorMode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-              title={colorMode === "dark" ? "Light theme" : "Dark theme"}
-            >
-              {colorMode === "dark" ? <SunIcon /> : <MoonIcon />}
-            </button>
+        <div className={styles.headerInner}>
+          <Link to="/" className={styles.brand} onClick={closeNav}>
+            Pulkiss
+          </Link>
+          <nav
+            id="main-navigation"
+            className={`${styles.nav} ${navOpen ? styles.navOpen : ""}`}
+            aria-label="Main"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                closeNav();
+              }
+            }}
+          >
+            <NavLink to="/" className={navClass} end onClick={closeNav}>
+              Home
+            </NavLink>
+            <NavLink to="/about" className={navClass} onClick={closeNav}>
+              About
+            </NavLink>
+            <NavLink to="/privacy" className={navClass} onClick={closeNav}>
+              Privacy
+            </NavLink>
             {ready && user ? (
-              <button type="button" className={styles.signOut} onClick={() => void onSignOut()}>
-                Sign out
-              </button>
+              <>
+                <NavLink to="/groups" className={navClass} onClick={closeNav}>
+                  Groups
+                </NavLink>
+                <NavLink to="/profile" className={navClass} onClick={closeNav}>
+                  Profile
+                </NavLink>
+                {canAccessUserManagement(user) ? (
+                  <NavLink to="/admin" className={navClass} onClick={closeNav}>
+                    User admin
+                  </NavLink>
+                ) : null}
+                <button
+                  type="button"
+                  className={styles.navSignOut}
+                  onClick={() => {
+                    closeNav();
+                    void onSignOut();
+                  }}
+                >
+                  Sign out
+                </button>
+              </>
             ) : null}
-          </div>
+          </nav>
+          <button
+            type="button"
+            className={styles.menuToggle}
+            onClick={() => setNavOpen((o) => !o)}
+            aria-expanded={navOpen}
+            aria-controls="main-navigation"
+            aria-label={navOpen ? "Close menu" : "Open menu"}
+          >
+            <MenuIcon open={navOpen} />
+          </button>
         </div>
       </header>
 
@@ -185,6 +248,16 @@ export function AppShell() {
           </p>
         </div>
       </footer>
+
+      <button
+        type="button"
+        className={styles.themeToggle}
+        onClick={toggleColorMode}
+        aria-label={colorMode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        title={colorMode === "dark" ? "Light theme" : "Dark theme"}
+      >
+        {colorMode === "dark" ? <SunIcon /> : <MoonIcon />}
+      </button>
     </div>
   );
 }

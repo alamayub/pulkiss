@@ -27,7 +27,7 @@ export function setTheme(theme) {
   }
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    meta.setAttribute("content", t === "light" ? "#e8ecf3" : "#0f1419");
+    meta.setAttribute("content", t === "light" ? "#f4f7f9" : "#0b1219");
   }
 }
 
