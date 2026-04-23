@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { getFirebaseAuth } from "../../lib/firebase";
 import {
@@ -205,9 +204,6 @@ export function AdminUsersPage({ user, isFullAdmin }) {
           >
             Refresh list
           </button>
-          <Link to="/" className={styles.linkBtn}>
-            Back to Pulkiss
-          </Link>
           <button type="button" className={styles.secondary} onClick={() => void onLogout()}>
             Log out
           </button>

@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import styles from "../staticDoc.module.scss";
 
 /**
@@ -7,9 +6,6 @@ import styles from "../staticDoc.module.scss";
 export function PrivacyPolicyPage() {
   return (
     <div className={styles.wrap}>
-      <Link to="/" className={styles.back}>
-        ← Back to Pulkiss
-      </Link>
       <article className={styles.article}>
         <h1>Privacy policy</h1>
         <p className={styles.meta}>
