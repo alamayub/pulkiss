@@ -37,7 +37,15 @@ router.post("/", requireAuth, (req, res) => {
     typeof req.body?.description === "string" ? req.body.description.trim().slice(0, 2000) : null;
   try {
     const group = createGroup(req.user, name, description);
-    return res.status(201).json({ group: { id: group.id, name, description, createdBy: group.createdBy } });
+    return res.status(201).json({
+      group: {
+        id: group.id,
+        name,
+        description,
+        logoUrl: group.logoUrl,
+        createdBy: group.createdBy,
+      },
+    });
   } catch (e) {
     console.error("create group", e);
     return res.status(500).json({ error: e instanceof Error ? e.message : "Failed to create group" });

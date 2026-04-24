@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { generateGroupLogoDataUrl } from "./groupLogo.js";
 import { parseYouTubeVideoId } from "./youtube.js";
 
 /** @typedef {"admin" | "member"} GroupRole */
@@ -8,9 +9,18 @@ import { parseYouTubeVideoId } from "./youtube.js";
  * @property {string} id
  * @property {string} name
  * @property {string | null} description
+ * @property {string | null} logoUrl
  * @property {string} createdBy
  * @property {number} createdAt
  */
+
+/** @param {GroupRecord} g */
+function ensureGroupLogo(g) {
+  if (g.logoUrl && String(g.logoUrl).length > 0) {
+    return;
+  }
+  g.logoUrl = generateGroupLogoDataUrl(g.name, g.id);
+}
 
 /**
  * @typedef {Object} MemberRecord
@@ -328,10 +338,12 @@ function messagesList(groupId) {
 export function createGroup(reqUser, name, description) {
   const id = randomUUID();
   const now = Date.now();
+  const logoUrl = generateGroupLogoDataUrl(name, id);
   groups.set(id, {
     id,
     name,
     description,
+    logoUrl,
     createdBy: reqUser.uid,
     createdAt: now,
   });
@@ -340,7 +352,7 @@ export function createGroup(reqUser, name, description) {
   membersByGroup.set(id, mm);
   joinRequestsByGroup.set(id, new Map());
   messagesByGroup.set(id, []);
-  return { id, name, description, createdBy: reqUser.uid };
+  return { id, name, description, createdBy: reqUser.uid, logoUrl };
 }
 
 /**
@@ -351,20 +363,33 @@ export function listGroupsSummary(meUid) {
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, MAX_GROUPS_LIST);
   return arr.map((g) => {
+    ensureGroupLogo(g);
     const mm = membersByGroup.get(g.id);
     const memberCount = mm ? mm.size : 0;
     const isMember = mm ? mm.has(meUid) : false;
     const jm = joinRequestsByGroup.get(g.id);
     const hasPendingRequest = jm ? jm.has(meUid) : false;
+    const viewerRole = getRole(g.id, meUid);
+    const pendingJoinCount = viewerRole === "admin" && jm ? jm.size : null;
+    const playerSnap = playerByGroup.get(g.id);
+    const watchQueueLength = playerSnap ? playerSnap.queue.length : 0;
+    const watchVideoId = playerSnap?.current?.videoId || null;
+    const watchIsPlaying = !!(playerSnap?.current?.isPlaying && watchVideoId);
     return {
       id: g.id,
       name: g.name,
       description: g.description,
+      logoUrl: g.logoUrl ?? null,
       createdBy: g.createdBy,
       createdAt: new Date(g.createdAt).toISOString(),
       memberCount,
       isMember,
       hasPendingRequest,
+      viewerRole,
+      pendingJoinCount,
+      watchQueueLength,
+      watchHasVideo: !!watchVideoId,
+      watchIsPlaying,
     };
   });
 }
@@ -608,6 +633,7 @@ export function getGroupDetailForViewer(groupId, uidViewer) {
   if (!g) {
     return null;
   }
+  ensureGroupLogo(g);
   const mm = membersByGroup.get(groupId) || new Map();
   const members = [...mm.entries()].map(([uid, x]) => ({
     uid,
@@ -633,6 +659,7 @@ export function getGroupDetailForViewer(groupId, uidViewer) {
       id: g.id,
       name: g.name,
       description: g.description,
+      logoUrl: g.logoUrl ?? null,
       createdBy: g.createdBy,
       createdAt: new Date(g.createdAt).toISOString(),
     },

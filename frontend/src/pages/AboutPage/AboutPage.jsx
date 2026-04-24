@@ -7,11 +7,6 @@ export function AboutPage() {
   return (
     <div className={styles.wrap}>
       <article className={styles.article}>
-        <p>
-          Pulkiss is a small web app for spontaneous video introductions and lightweight group spaces. You can drop into
-          a random one-to-one call when you feel social, or keep a group for chat and shared YouTube viewing.
-        </p>
-
         <h2>Random match</h2>
         <p>
           Sign in, tap Start, and you enter a queue. When someone else is waiting, the app pairs you and helps your
@@ -62,6 +57,11 @@ export function AboutPage() {
           This page describes the product in general. For downtime, abuse, privacy on a particular URL, or account
           issues on that host, reach out to the team that operates <em>this</em> deployment—they are the ones who can
           change policy, moderation, and configuration.
+        </p>
+
+        <p className={styles.meta}>
+          Pulkiss is a small web app for spontaneous video introductions and lightweight group spaces. You can drop into
+          a random one-to-one call when you feel social, or keep a group for chat and shared YouTube viewing.
         </p>
       </article>
     </div>

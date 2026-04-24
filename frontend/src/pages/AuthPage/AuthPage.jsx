@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { Link } from "react-router-dom";
 import {
@@ -10,11 +10,15 @@ import {
   linkWithCredential,
   EmailAuthProvider,
   signOut,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { getFirebaseAuth } from "../../lib/firebase";
 import { addToast, setAuthLoadingMessage } from "../../app/uiSlice";
-import { authRegister } from "../../lib/api";
+import { authRegister, fetchPresenceCount } from "../../lib/api";
+import { setTheme, THEME_STORAGE_KEY } from "../../lib/theme";
 import styles from "./AuthPage.module.scss";
+
+const REMEMBER_EMAIL_KEY = "pulkiss-saved-email";
 
 /** @param {unknown} er */
 function firebaseCode(er) {
@@ -49,21 +53,171 @@ function GoogleMark() {
   );
 }
 
+/** Heart in speech bubble + wordmark (login marketing). */
+function AuthLoginMark({ compact = false }) {
+  return (
+    <div className={compact ? styles.markCompact : styles.mark}>
+      <div className={styles.bubbleWrap} aria-hidden>
+        <svg className={styles.bubbleSvg} viewBox="0 0 56 52" fill="none">
+          <path
+            className={styles.bubbleShape}
+            d="M8 6h36c3.3 0 6 2.7 6 6v22c0 3.3-2.7 6-6 6H30l-10 8v-8H8c-3.3 0-6-2.7-6-6V12c0-3.3 2.7-6 6-6z"
+          />
+          <path
+            className={styles.bubbleHeart}
+            d="M28 32.2l-1.2-1.1C22.4 26.8 20 24.6 20 22c0-2.8 2.2-5 5-5 1.5 0 3 .7 3.8 1.8.9-1.1 2.3-1.8 3.8-1.8 2.8 0 5 2.2 5 5 0 2.6-2.4 4.8-6.8 9.1L28 32.2z"
+          />
+        </svg>
+      </div>
+      <span className={styles.markWord}>Pulkiss</span>
+    </div>
+  );
+}
+
+function IconMail() {
+  return (
+    <svg className={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" strokeLinejoin="round" />
+      <path d="m22 6-10 7L2 6" />
+    </svg>
+  );
+}
+
+function IconLock() {
+  return (
+    <svg className={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
+function IconUser() {
+  return (
+    <svg className={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function IconEye() {
+  return (
+    <svg className={styles.eyeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function IconEyeOff() {
+  return (
+    <svg className={styles.eyeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
+/** Users / presence icon for the hero online pill. */
+function IconOnlinePill() {
+  return (
+    <svg className={styles.onlinePillSvg} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg className={styles.themeSvg} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg className={styles.themeSvg} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
 export function AuthPage() {
   const dispatch = useDispatch();
   const [mode, setMode] = useState("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  /** Pending Google OAuth credential when Google sign-in hits an existing email/password account */
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [online, setOnline] = useState(0);
+  const [colorMode, setColorMode] = useState(() =>
+    typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "light"
+      ? "light"
+      : "dark"
+  );
+
   const pendingGoogleCredRef = useRef(null);
   const [googleLinkEmail, setGoogleLinkEmail] = useState(null);
   const [googleLinkPassword, setGoogleLinkPassword] = useState("");
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(REMEMBER_EMAIL_KEY);
+      if (saved) {
+        setEmail(saved);
+        setRememberMe(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchPresenceCount().then((n) => {
+      if (typeof n === "number") setOnline(n);
+    });
+  }, []);
+
+  const toggleColorMode = useCallback(() => {
+    const next = colorMode === "dark" ? "light" : "dark";
+    setColorMode(next);
+    setTheme(next);
+  }, [colorMode]);
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key !== THEME_STORAGE_KEY) return;
+      if (e.newValue !== "light" && e.newValue !== "dark") return;
+      setTheme(e.newValue);
+      setColorMode(e.newValue);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const persistRememberEmail = useCallback(() => {
+    try {
+      if (rememberMe && email.trim()) {
+        localStorage.setItem(REMEMBER_EMAIL_KEY, email.trim());
+      } else {
+        localStorage.removeItem(REMEMBER_EMAIL_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [rememberMe, email]);
+
   const doEmailSignIn = async (e) => {
     e.preventDefault();
     const emailTrim = email.trim();
+    persistRememberEmail();
     dispatch(setAuthLoadingMessage("Signing in…"));
     const auth = getFirebaseAuth();
     try {
@@ -181,7 +335,7 @@ export function AuthPage() {
       return;
     }
     if (!agreedPrivacy) {
-      dispatch(addToast({ type: "warning", message: "Please agree to the Privacy policy to create an account." }));
+      dispatch(addToast({ type: "warning", message: "Please agree to the Privacy Policy to create an account." }));
       return;
     }
     dispatch(setAuthLoadingMessage("Creating your account…"));
@@ -197,6 +351,24 @@ export function AuthPage() {
     } catch (er) {
       const base = er instanceof Error ? er.message : "Registration failed";
       dispatch(addToast({ type: "error", message: base }));
+    } finally {
+      dispatch(setAuthLoadingMessage(null));
+    }
+  };
+
+  const forgotPassword = async () => {
+    const emailTrim = email.trim();
+    if (!emailTrim) {
+      dispatch(addToast({ type: "warning", message: "Enter your email above first." }));
+      return;
+    }
+    dispatch(setAuthLoadingMessage("Sending reset link…"));
+    const auth = getFirebaseAuth();
+    try {
+      await sendPasswordResetEmail(auth, emailTrim);
+      dispatch(addToast({ type: "success", message: "Check your email for a password reset link." }));
+    } catch (er) {
+      dispatch(addToast({ type: "error", message: firebaseMessage(er) }));
     } finally {
       dispatch(setAuthLoadingMessage(null));
     }
@@ -239,164 +411,315 @@ export function AuthPage() {
     }
   };
 
+  const onlineLabel = `${Math.max(0, online).toLocaleString()}+`;
+
   return (
-    <div className={styles.wrap}>
-      <div className={styles.shell}>
-        <header className={styles.header}>
-          <h1>Welcome</h1>
-          <p className={styles.lead}>
-            Sign in with email or continue with Google. New accounts need your full name; new users get the default role{" "}
-            <strong>user</strong>.
-          </p>
-        </header>
+    <div className={styles.page}>
+      <div className={styles.mobileTop}>
+        <AuthLoginMark compact />
+        <button
+          type="button"
+          className={styles.themeBtn}
+          onClick={toggleColorMode}
+          aria-label={colorMode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+        >
+          {colorMode === "dark" ? <SunIcon /> : <MoonIcon />}
+        </button>
+      </div>
 
-        <div className={styles.card}>
-          <div className={styles.tabs} role="tablist" aria-label="Sign-in mode">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "login"}
-              className={mode === "login" ? styles.tabActive : styles.tab}
-              onClick={() => {
-                setMode("login");
-                setAgreedPrivacy(false);
-              }}
-            >
-              Log in
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "register"}
-              className={mode === "register" ? styles.tabActive : styles.tab}
-              onClick={() => {
-                setMode("register");
-                setAgreedPrivacy(false);
-              }}
-            >
-              Create account
-            </button>
+      <div className={styles.split}>
+        <aside className={styles.hero} aria-label="Pulkiss">
+          <div className={styles.heroDecor} aria-hidden>
+            <span className={styles.heroBubble} />
+            <span className={styles.heroBubble} />
+            <span className={styles.heroBubble} />
+            <span className={styles.heroBubble} />
+            <span className={styles.heroStar}>★</span>
+            <span className={styles.heroStar}>✦</span>
           </div>
-
-          {mode === "login" ? (
-            <form onSubmit={doEmailSignIn} className={styles.form}>
-              {/* <label htmlFor="auth-email">Email</label> */}
-              <input
-                id="auth-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                placeholder="you@example.com"
-              />
-              {/* <label htmlFor="auth-password">Password</label> */}
-              <input
-                id="auth-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={8}
-                required
-                autoComplete="current-password"
-                placeholder="Password (8+ characters)"
-              />
-              <button type="submit" className={styles.primary}>
-                Log in
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={doRegister} className={styles.form}>
-              {/* <label htmlFor="auth-name">Full name</label> */}
-              <input
-                id="auth-name"
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                maxLength={128}
-                autoComplete="name"
-                placeholder="Jane Doe"
-              />
-              {/* <label htmlFor="auth-reg-email">Email</label> */}
-              <input
-                id="auth-reg-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                placeholder="you@example.com"
-              />
-              {/* <label htmlFor="auth-reg-password">Password</label> */}
-              <input
-                id="auth-reg-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={8}
-                required
-                autoComplete="new-password"
-                placeholder="Password (8+ characters)"
-              />
-              <label className={styles.consent} htmlFor="auth-consent-privacy">
-                <input
-                  id="auth-consent-privacy"
-                  type="checkbox"
-                  checked={agreedPrivacy}
-                  onChange={(e) => setAgreedPrivacy(e.target.checked)}
-                />
-                <span className={styles.consentText}>
-                  I agree to the{" "}
-                  <Link to="/privacy" className={styles.consentLink}>
-                    Privacy policy
-                  </Link>
-                </span>
-              </label>
-              <button type="submit" className={styles.primary}>
-                Create account &amp; sign in
-              </button>
-            </form>
-          )}
-
-          <div className={styles.divider} role="presentation">
-            <span className={styles.dividerLine} />
-            <span className={styles.dividerText}>or</span>
-            <span className={styles.dividerLine} />
+          <div className={styles.heroCenter}>
+            <AuthLoginMark />
+            <p className={styles.heroTagline}>Random video chat, groups, and shared experiences.</p>
+            <div className={styles.heroDivider} role="presentation" />
+            <p className={styles.heroMicro}>Meet · Connect · Enjoy</p>
           </div>
+          <div className={styles.onlinePill}>
+            <span className={styles.onlinePillIcon} aria-hidden>
+              <IconOnlinePill />
+            </span>
+            <div className={styles.onlinePillCol}>
+              <strong className={styles.onlinePillCount}>{onlineLabel}</strong>
+              <span className={styles.onlinePillLabel}>People online now</span>
+            </div>
+          </div>
+        </aside>
 
-          <button type="button" className={styles.google} onClick={() => void doGoogle()}>
-            <GoogleMark />
-            Continue with Google
+        <div className={styles.formSide}>
+          <button
+            type="button"
+            className={styles.themeBtnDesktop}
+            onClick={toggleColorMode}
+            aria-label={colorMode === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+          >
+            {colorMode === "dark" ? <SunIcon /> : <MoonIcon />}
           </button>
 
-          {googleLinkEmail ? (
-            <form className={styles.linkForm} onSubmit={completeGoogleToPasswordLink}>
-              <p className={styles.linkHelp}>
-                Account <strong>{googleLinkEmail}</strong> already uses email and password. Enter that password to
-                attach Google.
-              </p>
-              <label htmlFor="auth-link-password">Password for existing account</label>
-              <input
-                id="auth-link-password"
-                type="password"
-                value={googleLinkPassword}
-                onChange={(e) => setGoogleLinkPassword(e.target.value)}
-                minLength={8}
-                required
-                autoComplete="current-password"
-                placeholder="Your account password"
-              />
-              <div className={styles.linkRow}>
+          <div className={styles.card}>
+            <div className={styles.tabs} role="tablist" aria-label="Sign-in mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "login"}
+                className={mode === "login" ? styles.tabActive : styles.tab}
+                onClick={() => {
+                  setMode("login");
+                  setAgreedPrivacy(false);
+                }}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "register"}
+                className={mode === "register" ? styles.tabActive : styles.tab}
+                onClick={() => {
+                  setMode("register");
+                  setAgreedPrivacy(false);
+                }}
+              >
+                Register
+              </button>
+            </div>
+
+            {mode === "login" ? (
+              <>
+                <h1 className={styles.title}>Welcome Back</h1>
+                <p className={styles.subtitle}>Sign in to continue to Pulkiss</p>
+              </>
+            ) : (
+              <>
+                <h1 className={styles.title}>Create your account</h1>
+                <p className={styles.subtitle}>Sign up to join Pulkiss</p>
+              </>
+            )}
+
+            {mode === "login" ? (
+              <form onSubmit={doEmailSignIn} className={styles.form}>
+                <label className={styles.label} htmlFor="auth-email">
+                  Email address
+                </label>
+                <div className={styles.inputWrap}>
+                  <span className={styles.inputAffix}>
+                    <IconMail />
+                  </span>
+                  <input
+                    id="auth-email"
+                    className={styles.input}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    placeholder="name@company.com"
+                  />
+                </div>
+
+                <label className={styles.label} htmlFor="auth-password">
+                  Password
+                </label>
+                <div className={styles.inputWrap}>
+                  <span className={styles.inputAffix}>
+                    <IconLock />
+                  </span>
+                  <input
+                    id="auth-password"
+                    className={styles.input}
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    minLength={8}
+                    required
+                    autoComplete="current-password"
+                    placeholder="Enter your password"
+                  />
+                  <button
+                    type="button"
+                    className={styles.eyeBtn}
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <IconEyeOff /> : <IconEye />}
+                  </button>
+                </div>
+
+                <div className={styles.optionsRow}>
+                  <label className={styles.remember}>
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                    />
+                    <span>Remember me</span>
+                  </label>
+                  <button type="button" className={styles.forgotBtn} onClick={() => void forgotPassword()}>
+                    Forgot password?
+                  </button>
+                </div>
+
                 <button type="submit" className={styles.primary}>
-                  Link Google &amp; sign in
+                  Sign In
                 </button>
-                <button type="button" className={styles.secondary} onClick={cancelGoogleLinkForm}>
-                  Cancel
+              </form>
+            ) : (
+              <form onSubmit={doRegister} className={styles.form}>
+                <label className={styles.label} htmlFor="auth-name">
+                  Full name
+                </label>
+                <div className={styles.inputWrap}>
+                  <span className={styles.inputAffix}>
+                    <IconUser />
+                  </span>
+                  <input
+                    id="auth-name"
+                    className={styles.input}
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                    maxLength={128}
+                    autoComplete="name"
+                    placeholder="Jane Doe"
+                  />
+                </div>
+
+                <label className={styles.label} htmlFor="auth-reg-email">
+                  Email address
+                </label>
+                <div className={styles.inputWrap}>
+                  <span className={styles.inputAffix}>
+                    <IconMail />
+                  </span>
+                  <input
+                    id="auth-reg-email"
+                    className={styles.input}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    placeholder="name@company.com"
+                  />
+                </div>
+
+                <label className={styles.label} htmlFor="auth-reg-password">
+                  Password
+                </label>
+                <div className={styles.inputWrap}>
+                  <span className={styles.inputAffix}>
+                    <IconLock />
+                  </span>
+                  <input
+                    id="auth-reg-password"
+                    className={styles.input}
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    minLength={8}
+                    required
+                    autoComplete="new-password"
+                    placeholder="At least 8 characters"
+                  />
+                  <button
+                    type="button"
+                    className={styles.eyeBtn}
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <IconEyeOff /> : <IconEye />}
+                  </button>
+                </div>
+
+                <label className={styles.consent} htmlFor="auth-consent-privacy">
+                  <input
+                    id="auth-consent-privacy"
+                    type="checkbox"
+                    checked={agreedPrivacy}
+                    onChange={(e) => setAgreedPrivacy(e.target.checked)}
+                  />
+                  <span>
+                    I agree to the{" "}
+                    <Link to="/privacy" className={styles.inlineLink}>
+                      Privacy Policy
+                    </Link>
+                  </span>
+                </label>
+
+                <button type="submit" className={styles.primary}>
+                  Create account
                 </button>
-              </div>
-            </form>
-          ) : null}
+              </form>
+            )}
+
+            <div className={styles.divider} role="presentation">
+              <span className={styles.dividerLine} />
+              <span className={styles.dividerText}>or continue with</span>
+              <span className={styles.dividerLine} />
+            </div>
+
+            <button type="button" className={styles.google} onClick={() => void doGoogle()}>
+              <GoogleMark />
+              Continue with Google
+            </button>
+
+            <p className={styles.legal}>
+              By continuing, you agree to our{" "}
+              <Link to="/terms" className={styles.inlineLink}>
+                Terms of Use
+              </Link>{" "}
+              and{" "}
+              <Link to="/privacy" className={styles.inlineLink}>
+                Privacy Policy
+              </Link>
+              .
+            </p>
+
+            {googleLinkEmail ? (
+              <form className={styles.linkForm} onSubmit={completeGoogleToPasswordLink}>
+                <p className={styles.linkHelp}>
+                  Account <strong>{googleLinkEmail}</strong> already uses email and password. Enter that password to link
+                  Google.
+                </p>
+                <label className={styles.label} htmlFor="auth-link-password">
+                  Password for existing account
+                </label>
+                <div className={styles.inputWrap}>
+                  <span className={styles.inputAffix}>
+                    <IconLock />
+                  </span>
+                  <input
+                    id="auth-link-password"
+                    className={styles.input}
+                    type="password"
+                    value={googleLinkPassword}
+                    onChange={(e) => setGoogleLinkPassword(e.target.value)}
+                    minLength={8}
+                    required
+                    autoComplete="current-password"
+                    placeholder="Your account password"
+                  />
+                </div>
+                <div className={styles.linkRow}>
+                  <button type="submit" className={styles.primary}>
+                    Link Google &amp; sign in
+                  </button>
+                  <button type="button" className={styles.secondary} onClick={cancelGoogleLinkForm}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

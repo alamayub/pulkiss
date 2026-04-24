@@ -29,6 +29,32 @@ function formatTime(s) {
   return `${pad2(m)}:${pad2(sec)}`;
 }
 
+/** @param {string | undefined} iso */
+function formatRelativeIso(iso) {
+  if (!iso) {
+    return "";
+  }
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) {
+    return "";
+  }
+  const diff = Date.now() - t;
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) {
+    return "just now";
+  }
+  const m = Math.floor(sec / 60);
+  if (m < 60) {
+    return `${m}m ago`;
+  }
+  const h = Math.floor(m / 60);
+  if (h < 48) {
+    return `${h}h ago`;
+  }
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
 function IconPlay() {
   return (
     <svg className={styles.adminIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -62,9 +88,9 @@ function IconSkipNext() {
 }
 
 /**
- * @param {{ groupId: string, socket: import("socket.io-client").Socket | null, isAdmin: boolean, initialPlayer: object | null, user: { uid: string } | null }} props
+ * @param {{ groupId: string, socket: import("socket.io-client").Socket | null, isAdmin: boolean, initialPlayer: object | null, user: { uid: string } | null, layout?: "default" | "dashboard" }} props
  */
-export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, user }) {
+export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, user, layout = "default" }) {
   const dispatch = useDispatch();
   const [playerData, setPlayerData] = useState(initialPlayer);
   const [url, setUrl] = useState("");
@@ -76,6 +102,7 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
   const [durationSec, setDurationSec] = useState(0);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [scrubSec, setScrubSec] = useState(0);
+  const [videoTitle, setVideoTitle] = useState("");
 
   const playerRef = useRef(null);
   const domIdRef = useRef(uid());
@@ -89,6 +116,41 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
 
   const cur = playerData?.current;
   const q = playerData?.queue || [];
+  const isDashboard = layout === "dashboard";
+  const currentQueueItem = cur?.currentItemId ? q.find((it) => it.id === cur.currentItemId) : null;
+  const addedOverlay =
+    currentQueueItem != null
+      ? `Added by ${currentQueueItem.addedByName || currentQueueItem.addedByUid} · ${formatRelativeIso(currentQueueItem.addedAt)}`
+      : null;
+
+  useEffect(() => {
+    if (!isDashboard || !cur?.videoId) {
+      setVideoTitle("");
+      return undefined;
+    }
+    let cancelled = false;
+    const vid = cur.videoId;
+    (async () => {
+      try {
+        const u = `https://www.youtube.com/watch?v=${encodeURIComponent(vid)}`;
+        const r = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(u)}&format=json`);
+        if (!r.ok) {
+          throw new Error("oembed");
+        }
+        const j = await r.json();
+        if (!cancelled && typeof j?.title === "string") {
+          setVideoTitle(j.title);
+        }
+      } catch {
+        if (!cancelled) {
+          setVideoTitle(`YouTube · ${vid}`);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDashboard, cur?.videoId]);
 
   // Parent refreshes `initialPlayer` on an interval. Never overwrite newer socket/REST
   // state with a stale in-flight or cached HTTP response (older `serverTime`).
@@ -462,6 +524,196 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
   const fillPct = dMax > 0 ? Math.min(100, Math.max(0, (displayT / dMax) * 100)) : 0;
   const showProgress = Boolean(cur?.videoId && (yReady || durationSec > 0));
 
+  const progressBlock = (
+    <div className={isDashboard ? styles.controlRowDash : styles.controlRow}>
+      {showProgress ? (
+        <div className={`${styles.progressRow} ${isDashboard ? styles.progressRowDash : ""}`}>
+          <span className={styles.tLeft}>{formatTime(displayT)}</span>
+          <div className={styles.rangeWrap}>
+            {isAdmin && yReady && cur?.videoId ? (
+              <input
+                ref={rangeInputRef}
+                type="range"
+                className={styles.range}
+                style={{ "--fill": `${fillPct}%` }}
+                min={0}
+                max={dMax}
+                step={0.1}
+                value={displayT}
+                onPointerDown={onSeekBarPointerDown}
+                onInput={onSeekBarInput}
+                onPointerCancel={commitScrub}
+                disabled={!cur?.videoId}
+                aria-label="Seek video by dragging"
+              />
+            ) : (
+              <div className={styles.readonlyTrack} aria-hidden>
+                <div className={styles.readonlyFill} style={{ width: `${fillPct}%` }} />
+              </div>
+            )}
+          </div>
+          <span className={styles.tRight}>{formatTime(durationSec)}</span>
+        </div>
+      ) : null}
+      {isAdmin && yReady ? (
+        <div className={isDashboard ? styles.adminBarDash : styles.adminBar} role="toolbar" aria-label="Playback controls">
+          <button
+            type="button"
+            className={styles.iconBtn}
+            data-tooltip="Play"
+            onClick={() => sendCmd("play")}
+            disabled={!cur?.videoId}
+            aria-label="Play"
+          >
+            <IconPlay />
+          </button>
+          <button
+            type="button"
+            className={styles.iconBtn}
+            data-tooltip="Pause"
+            onClick={() => sendCmd("pause")}
+            disabled={!cur?.videoId}
+            aria-label="Pause"
+          >
+            <IconPause />
+          </button>
+          <button
+            type="button"
+            className={styles.iconBtn}
+            data-tooltip="Stop"
+            onClick={() => sendCmd("stop")}
+            aria-label="Stop"
+          >
+            <IconStop />
+          </button>
+          <button
+            type="button"
+            className={styles.iconBtn}
+            data-tooltip="Next in queue"
+            onClick={() => sendCmd("next")}
+            disabled={!q.length}
+            aria-label="Next in queue"
+          >
+            <IconSkipNext />
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+
+  if (isDashboard) {
+    return (
+      <div className={`${styles.root} ${styles.rootDashboard}`}>
+        {localErr ? <p className={styles.err}>{localErr}</p> : null}
+
+        <div className={styles.dashMedia}>
+          <div className={styles.playerWrapDashboard}>
+            {addedOverlay ? (
+              <div className={styles.mediaOverlay}>
+                <span className={styles.mediaOverlayText}>{addedOverlay}</span>
+              </div>
+            ) : null}
+            {!isAdmin ? <div className={styles.iframeBlock} aria-hidden title="Server-controlled" /> : null}
+            <div className={styles.playerElDashboard} id={domIdRef.current} />
+          </div>
+
+          <div className={styles.dashDeck}>
+            <div className={styles.deckTop}>
+              {cur?.isPlaying && cur?.videoId ? (
+                <span className={styles.onAirBadge}>ON AIR</span>
+              ) : (
+                <span className={styles.idleBadge}>IDLE</span>
+              )}
+              <h3 className={styles.dashVideoTitle}>{cur?.videoId ? videoTitle || "Loading title…" : "Nothing playing"}</h3>
+            </div>
+            <div className={styles.deckActions}>
+              {watchUrl ? (
+                <a className={styles.btnYtOutline} href={watchUrl} target="_blank" rel="noreferrer">
+                  Open on YouTube
+                </a>
+              ) : null}
+              {isAdmin ? (
+                <>
+                  <button type="button" className={styles.btnStopSolid} onClick={() => sendCmd("stop")}>
+                    Stop
+                  </button>
+                  <button type="button" className={styles.btnNextDash} onClick={() => sendCmd("next")} disabled={!q.length}>
+                    Next ››
+                  </button>
+                </>
+              ) : null}
+            </div>
+            {showProgress || (isAdmin && yReady) ? progressBlock : null}
+          </div>
+        </div>
+
+        <div className={styles.queueCard}>
+          <div className={styles.queueHead}>
+            <h4 className={styles.queueTitle}>Queue</h4>
+            <span className={styles.queueBadge}>{q.length}</span>
+            {isAdmin ? (
+              <form className={styles.queueAddForm} onSubmit={(e) => void onAdd(e)}>
+                <input
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  type="url"
+                  placeholder="Paste a YouTube link…"
+                  className={styles.queueUrlInput}
+                />
+                <button type="submit" className={styles.btnAddLink} disabled={adding || !url.trim()}>
+                  {adding ? "…" : "+ Add Link"}
+                </button>
+              </form>
+            ) : null}
+          </div>
+          {!isAdmin ? <p className={styles.queueHint}>Playback follows the group admin.</p> : null}
+          <ul className={styles.queueListDash} aria-label="Video queue">
+            {q.length === 0 ? (
+              <li className={styles.queueEmpty}>No videos in the queue yet.</li>
+            ) : (
+              q.map((it, idx) => (
+                <li key={it.id} className={styles.qRowDash}>
+                  <span className={styles.qIdx}>{idx + 1}</span>
+                  <img
+                    className={styles.qThumb}
+                    src={`https://i.ytimg.com/vi/${encodeURIComponent(it.videoId)}/mqdefault.jpg`}
+                    alt=""
+                    width={80}
+                    height={45}
+                    loading="lazy"
+                  />
+                  <div className={styles.qBodyDash}>
+                    <span className={styles.qVidId}>{it.videoId}</span>
+                    <span className={styles.qByLine}>
+                      Added by {it.addedByName || it.addedByUid} · {formatRelativeIso(it.addedAt)}
+                    </span>
+                  </div>
+                  {it.id === cur?.currentItemId ? (
+                    <span className={styles.nowPlayingMark} title="Now playing" aria-label="Now playing">
+                      ♪
+                    </span>
+                  ) : (
+                    <span className={styles.nowPlayingSpacer} aria-hidden />
+                  )}
+                  {isAdmin ? (
+                    <div className={styles.qRowActionsDash}>
+                      <button type="button" className={styles.qMiniBtn} onClick={() => sendCmd("setCurrent", { itemId: it.id })}>
+                        Play this
+                      </button>
+                      <button type="button" className={styles.qMiniBtnDanger} onClick={() => sendCmd("remove", { itemId: it.id })}>
+                        Remove
+                      </button>
+                    </div>
+                  ) : null}
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.root}>
       {cur?.isPlaying ? (
@@ -493,82 +745,7 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
         <div className={styles.playerEl} id={domIdRef.current} />
       </div>
 
-      {(showProgress || (isAdmin && yReady)) && (
-        <div className={styles.controlRow}>
-          {showProgress ? (
-            <div className={styles.progressRow}>
-              <span className={styles.tLeft}>{formatTime(displayT)}</span>
-              <div className={styles.rangeWrap}>
-                {isAdmin && yReady && cur?.videoId ? (
-                  <input
-                    ref={rangeInputRef}
-                    type="range"
-                    className={styles.range}
-                    style={{ "--fill": `${fillPct}%` }}
-                    min={0}
-                    max={dMax}
-                    step={0.1}
-                    value={displayT}
-                    onPointerDown={onSeekBarPointerDown}
-                    onInput={onSeekBarInput}
-                    onPointerCancel={commitScrub}
-                    disabled={!cur?.videoId}
-                    aria-label="Seek video by dragging"
-                  />
-                ) : (
-                  <div className={styles.readonlyTrack} aria-hidden>
-                    <div className={styles.readonlyFill} style={{ width: `${fillPct}%` }} />
-                  </div>
-                )}
-              </div>
-              <span className={styles.tRight}>{formatTime(durationSec)}</span>
-            </div>
-          ) : null}
-          {isAdmin && yReady ? (
-            <div className={styles.adminBar} role="toolbar" aria-label="Playback controls">
-              <button
-                type="button"
-                className={styles.iconBtn}
-                data-tooltip="Play"
-                onClick={() => sendCmd("play")}
-                disabled={!cur?.videoId}
-                aria-label="Play"
-              >
-                <IconPlay />
-              </button>
-              <button
-                type="button"
-                className={styles.iconBtn}
-                data-tooltip="Pause"
-                onClick={() => sendCmd("pause")}
-                disabled={!cur?.videoId}
-                aria-label="Pause"
-              >
-                <IconPause />
-              </button>
-              <button
-                type="button"
-                className={styles.iconBtn}
-                data-tooltip="Stop"
-                onClick={() => sendCmd("stop")}
-                aria-label="Stop"
-              >
-                <IconStop />
-              </button>
-              <button
-                type="button"
-                className={styles.iconBtn}
-                data-tooltip="Next in queue"
-                onClick={() => sendCmd("next")}
-                disabled={!q.length}
-                aria-label="Next in queue"
-              >
-                <IconSkipNext />
-              </button>
-            </div>
-          ) : null}
-        </div>
-      )}
+      {(showProgress || (isAdmin && yReady)) && progressBlock}
 
       {isAdmin && watchUrl && (
         <p className={styles.muted}>

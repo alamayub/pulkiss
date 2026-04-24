@@ -262,6 +262,31 @@ function initSocket(io) {
       }
     });
 
+    /** Hang up: peer gets match:ended with reason "left" (not "next"). */
+    socket.on("match:leave", () => {
+      const mid = socket.data.matchId;
+      if (!mid) {
+        return;
+      }
+      const m = matches.get(mid);
+      if (!m) {
+        return;
+      }
+      const peerId = getPeerSocketId(m, socket.id);
+      matches.delete(mid);
+      for (const sk of [m.a.socketId, m.b.socketId]) {
+        const sock = io.sockets.sockets.get(sk);
+        if (sock) {
+          sock.data.inMatch = false;
+          void uidToMatchId.delete(sock.data.uid);
+          sock.data.matchId = undefined;
+        }
+      }
+      if (peerId) {
+        io.to(peerId).emit("match:ended", { reason: "left" });
+      }
+    });
+
     function validateInMatch(incomingMatchId) {
       const m = matches.get(incomingMatchId);
       if (!m) {
