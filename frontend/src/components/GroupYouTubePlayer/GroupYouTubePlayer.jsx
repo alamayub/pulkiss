@@ -7,9 +7,14 @@ import styles from "./GroupYouTubePlayer.module.scss";
 
 const uid = () => `gyt-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+/** @param {number} n */
+function pad2(n) {
+  return String(Math.floor(n)).padStart(2, "0");
+}
+
 /**
  * @param {number} s
- * @returns {string}
+ * @returns {string} `MM:SS`, or `HH:MM:SS` when an hour or more.
  */
 function formatTime(s) {
   if (!Number.isFinite(s) || s < 0) {
@@ -19,9 +24,41 @@ function formatTime(s) {
   const m = Math.floor((s % 3600) / 60);
   const sec = Math.floor(s % 60);
   if (h > 0) {
-    return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+    return `${pad2(h)}:${pad2(m)}:${pad2(sec)}`;
   }
-  return `${m}:${String(sec).padStart(2, "0")}`;
+  return `${pad2(m)}:${pad2(sec)}`;
+}
+
+function IconPlay() {
+  return (
+    <svg className={styles.adminIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M8 5.14v13.72L17.5 12 8 5.14z" />
+    </svg>
+  );
+}
+
+function IconPause() {
+  return (
+    <svg className={styles.adminIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+    </svg>
+  );
+}
+
+function IconStop() {
+  return (
+    <svg className={styles.adminIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M6 6h12v12H6V6z" />
+    </svg>
+  );
+}
+
+function IconSkipNext() {
+  return (
+    <svg className={styles.adminIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M6 18l8.5-6L6 6v12zm10 0V6h2v12h-2z" />
+    </svg>
+  );
 }
 
 /**
@@ -427,9 +464,11 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
 
   return (
     <div className={styles.root}>
-      <h2>
-        Group video {cur?.isPlaying && <span className={styles.badge}>Live</span>}
-      </h2>
+      {cur?.isPlaying ? (
+        <div className={styles.liveRow}>
+          <span className={styles.badge}>Live</span>
+        </div>
+      ) : null}
       <p className={styles.muted}>
         {isAdmin
           ? "Add YouTube links. You control playback. Everyone in the group stays in sync with you."
@@ -454,33 +493,80 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
         <div className={styles.playerEl} id={domIdRef.current} />
       </div>
 
-      {showProgress && (
-        <div className={styles.progressRow}>
-          <span className={styles.tLeft}>{formatTime(displayT)}</span>
-          <div className={styles.rangeWrap}>
-            {isAdmin && yReady && cur?.videoId ? (
-              <input
-                ref={rangeInputRef}
-                type="range"
-                className={styles.range}
-                style={{ "--fill": `${fillPct}%` }}
-                min={0}
-                max={dMax}
-                step={0.1}
-                value={displayT}
-                onPointerDown={onSeekBarPointerDown}
-                onInput={onSeekBarInput}
-                onPointerCancel={commitScrub}
-                disabled={!cur?.videoId}
-                aria-label="Seek video by dragging"
-              />
-            ) : (
-              <div className={styles.readonlyTrack} aria-hidden>
-                <div className={styles.readonlyFill} style={{ width: `${fillPct}%` }} />
+      {(showProgress || (isAdmin && yReady)) && (
+        <div className={styles.controlRow}>
+          {showProgress ? (
+            <div className={styles.progressRow}>
+              <span className={styles.tLeft}>{formatTime(displayT)}</span>
+              <div className={styles.rangeWrap}>
+                {isAdmin && yReady && cur?.videoId ? (
+                  <input
+                    ref={rangeInputRef}
+                    type="range"
+                    className={styles.range}
+                    style={{ "--fill": `${fillPct}%` }}
+                    min={0}
+                    max={dMax}
+                    step={0.1}
+                    value={displayT}
+                    onPointerDown={onSeekBarPointerDown}
+                    onInput={onSeekBarInput}
+                    onPointerCancel={commitScrub}
+                    disabled={!cur?.videoId}
+                    aria-label="Seek video by dragging"
+                  />
+                ) : (
+                  <div className={styles.readonlyTrack} aria-hidden>
+                    <div className={styles.readonlyFill} style={{ width: `${fillPct}%` }} />
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <span className={styles.tRight}>{formatTime(durationSec)}</span>
+              <span className={styles.tRight}>{formatTime(durationSec)}</span>
+            </div>
+          ) : null}
+          {isAdmin && yReady ? (
+            <div className={styles.adminBar} role="toolbar" aria-label="Playback controls">
+              <button
+                type="button"
+                className={styles.iconBtn}
+                data-tooltip="Play"
+                onClick={() => sendCmd("play")}
+                disabled={!cur?.videoId}
+                aria-label="Play"
+              >
+                <IconPlay />
+              </button>
+              <button
+                type="button"
+                className={styles.iconBtn}
+                data-tooltip="Pause"
+                onClick={() => sendCmd("pause")}
+                disabled={!cur?.videoId}
+                aria-label="Pause"
+              >
+                <IconPause />
+              </button>
+              <button
+                type="button"
+                className={styles.iconBtn}
+                data-tooltip="Stop"
+                onClick={() => sendCmd("stop")}
+                aria-label="Stop"
+              >
+                <IconStop />
+              </button>
+              <button
+                type="button"
+                className={styles.iconBtn}
+                data-tooltip="Next in queue"
+                onClick={() => sendCmd("next")}
+                disabled={!q.length}
+                aria-label="Next in queue"
+              >
+                <IconSkipNext />
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -492,25 +578,7 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
         </p>
       )}
 
-      {isAdmin && yReady && (
-        <div className={styles.adminBar}>
-          <button type="button" onClick={() => sendCmd("play")} disabled={!cur?.videoId}>
-            Play
-          </button>
-          <button type="button" onClick={() => sendCmd("pause")} disabled={!cur?.videoId}>
-            Pause
-          </button>
-          <button type="button" onClick={() => sendCmd("stop")}>
-            Stop
-          </button>
-          <button type="button" onClick={() => sendCmd("next")} disabled={!q.length}>
-            Next
-          </button>
-        </div>
-      )}
-
-      <h3>Queue</h3>
-      <ul className={styles.queue}>
+      <ul className={styles.queue} aria-label="Video queue">
         {q.length === 0 && <li className={styles.muted}>No videos in the queue. Add a link above.</li>}
         {q.map((it) => (
           <li key={it.id} className={styles.qItem}>

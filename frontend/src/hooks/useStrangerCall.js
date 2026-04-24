@@ -24,6 +24,10 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
   const [chatLines, setChatLines] = useState(() => /** @type {{ self: boolean, text: string }[]} */ ([]));
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [remoteCameraOn, setRemoteCameraOn] = useState(true);
+  /** Avatar image URLs from the server (same for you and your peer’s client). */
+  const [selfAvatarUrl, setSelfAvatarUrl] = useState("");
+  const [peerAvatarUrl, setPeerAvatarUrl] = useState("");
 
   const iceServersRef = useRef([{ urls: "stun:stun.l.google.com:19302" }]);
   const localStreamRef = useRef(null);
@@ -54,6 +58,7 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     if (remoteRef.current) {
       remoteRef.current.srcObject = null;
     }
+    setRemoteCameraOn(true);
   }, [remoteRef]);
 
   const endLocalMedia = useCallback(() => {
@@ -71,6 +76,8 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
   const endMatchUi = useCallback(() => {
     closePeer();
     currentMatchIdRef.current = null;
+    setPeerAvatarUrl("");
+    setRemoteCameraOn(true);
     setInCall(false);
     setCanChat(false);
     setInQueue(false);
@@ -173,6 +180,12 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
       setInCall(true);
       setCanChat(true);
       currentMatchIdRef.current = data.matchId;
+      if (typeof data.selfAvatarUrl === "string" && data.selfAvatarUrl) {
+        setSelfAvatarUrl(data.selfAvatarUrl);
+      }
+      if (typeof data.peerAvatarUrl === "string" && data.peerAvatarUrl) {
+        setPeerAvatarUrl(data.peerAvatarUrl);
+      }
 
       try {
         if (needsNewLocalStream(localStreamRef.current)) {
@@ -222,8 +235,22 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
       });
 
       pc.ontrack = (e) => {
-        if (e.streams[0] && remoteRef.current) {
-          remoteRef.current.srcObject = e.streams[0];
+        const stream = e.streams[0];
+        if (!stream || !remoteRef.current) {
+          return;
+        }
+        remoteRef.current.srcObject = stream;
+        const vt = stream.getVideoTracks()[0];
+        if (vt) {
+          const sync = () => {
+            setRemoteCameraOn(vt.readyState === "live" && vt.enabled);
+          };
+          vt.addEventListener("ended", sync);
+          vt.addEventListener("mute", sync);
+          vt.addEventListener("unmute", sync);
+          sync();
+        } else {
+          setRemoteCameraOn(false);
         }
       };
       pc.onicecandidate = (e) => {
@@ -274,8 +301,14 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     const onId = () => {
       socketIdRef.current = socket.id;
     };
+    const onSessionSelf = (p) => {
+      if (typeof p?.selfAvatarUrl === "string" && p.selfAvatarUrl) {
+        setSelfAvatarUrl(p.selfAvatarUrl);
+      }
+    };
     socket.on("connect", onId);
     onId();
+    socket.on("session:self", onSessionSelf);
     const onFound = (d) => void onMatchFound(d);
     const onEnd = (e) => onMatchEnded(e);
     const onO = (d) => onRtcOffer(d);
@@ -294,6 +327,7 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     socket.on("chat:message", onMsg);
     return () => {
       socket.off("connect", onId);
+      socket.off("session:self", onSessionSelf);
       socket.off("match:found", onFound);
       socket.off("match:ended", onEnd);
       socket.off("rtc:offer", onO);
@@ -348,6 +382,8 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     closePeer();
     clearChat();
     currentMatchIdRef.current = null;
+    setPeerAvatarUrl("");
+    setRemoteCameraOn(true);
     setInCall(false);
     setCanChat(false);
     setInQueue(false);
@@ -396,6 +432,9 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     chatLines,
     videoEnabled,
     audioEnabled,
+    remoteCameraOn,
+    selfAvatarUrl,
+    peerAvatarUrl,
     startSearch,
     stopSearch,
     next,

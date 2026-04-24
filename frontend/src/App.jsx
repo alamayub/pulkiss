@@ -8,7 +8,6 @@ import { RoomPage } from "./pages/RoomPage/RoomPage";
 import { AdminUsersPage } from "./pages/AdminUsersPage/AdminUsersPage";
 import { AdminAccessDenied } from "./pages/AdminAccessDenied/AdminAccessDenied";
 import { GroupsListPage } from "./pages/GroupsListPage/GroupsListPage";
-import { GroupNewPage } from "./pages/GroupNewPage/GroupNewPage";
 import { GroupDetailPage } from "./pages/GroupDetailPage/GroupDetailPage";
 import { AboutPage } from "./pages/AboutPage/AboutPage";
 import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage/PrivacyPolicyPage";
@@ -56,7 +55,15 @@ export default function App() {
           />
           <Route
             path="/groups/new"
-            element={!ready ? <AuthLoadingScreen /> : !user ? <Navigate to="/" replace /> : <GroupNewPage />}
+            element={
+              !ready ? (
+                <AuthLoadingScreen />
+              ) : !user ? (
+                <Navigate to="/" replace />
+              ) : (
+                <Navigate to="/groups" replace state={{ openCreate: true }} />
+              )
+            }
           />
           <Route
             path="/groups/:groupId"

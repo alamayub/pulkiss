@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { addToast } from "../../app/uiSlice";
 import { useSessionSocket } from "../../hooks/useSessionSocket";
 import { useStrangerCall } from "../../hooks/useStrangerCall";
+import { useVideoCenterAvatar } from "../../hooks/useVideoCenterAvatar";
 import styles from "./RoomPage.module.scss";
 
 function ControlIcon({ children }) {
@@ -124,6 +125,9 @@ export function RoomPage({ user }) {
     chatLines,
     videoEnabled,
     audioEnabled,
+    remoteCameraOn,
+    selfAvatarUrl,
+    peerAvatarUrl,
     startSearch,
     stopSearch,
     next,
@@ -132,6 +136,9 @@ export function RoomPage({ user }) {
     toggleAudio,
   } = useStrangerCall(socket, localRef, remoteRef, { onMatchEnd });
   const [chatInput, setChatInput] = useState("");
+
+  const localShowCenterAvatar = useVideoCenterAvatar(localRef, videoEnabled, true);
+  const remoteShowCenterAvatar = useVideoCenterAvatar(remoteRef, remoteCameraOn, inCall);
 
   return (
     <div className={styles.wrap}>
@@ -142,11 +149,39 @@ export function RoomPage({ user }) {
         </p>
         <div className={styles.matchStage}>
           <p className={styles.labelMatch}>Match</p>
-          <video ref={remoteRef} className={styles.vidRemote} playsInline autoPlay />
+          <div className={styles.videoShell}>
+            <video ref={remoteRef} className={styles.vidRemote} playsInline autoPlay />
+            {inCall && peerAvatarUrl ? (
+              <>
+                {remoteShowCenterAvatar ? (
+                  <div className={styles.avatarFallback} aria-hidden>
+                    <img src={peerAvatarUrl} alt="" className={styles.avatarHero} decoding="async" />
+                  </div>
+                ) : null}
+                <div className={styles.avatarCorner} aria-hidden>
+                  <img src={peerAvatarUrl} alt="" className={styles.avatarCornerImg} decoding="async" />
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
         <div className={styles.pip}>
           <p className={styles.pipLabel}>You</p>
-          <video ref={localRef} className={styles.vidPip} playsInline autoPlay muted />
+          <div className={styles.videoShell}>
+            <video ref={localRef} className={styles.vidPip} playsInline autoPlay muted />
+            {selfAvatarUrl ? (
+              <>
+                {localShowCenterAvatar ? (
+                  <div className={styles.avatarFallback} aria-hidden>
+                    <img src={selfAvatarUrl} alt="" className={styles.avatarHero} decoding="async" />
+                  </div>
+                ) : null}
+                <div className={`${styles.avatarCorner} ${styles.avatarCornerPip}`} aria-hidden>
+                  <img src={selfAvatarUrl} alt="" className={styles.avatarCornerImg} decoding="async" />
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
         <div className={styles.callControls} role="toolbar" aria-label="Call controls">
           <button

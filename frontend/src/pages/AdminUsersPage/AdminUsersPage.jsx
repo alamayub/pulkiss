@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { signOut } from "firebase/auth";
-import { getFirebaseAuth } from "../../lib/firebase";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   adminListUsers,
   adminSearchUsers,
@@ -30,11 +28,146 @@ function formatWhen(iso) {
 
 /** @param {{ uid: string, email?: string | null, displayName?: string | null, presence?: { name?: string | null } }} u @param {string} qLower */
 function userMatchesSearch(u, qLower) {
-  const parts = [u.uid, u.email || "", u.displayName || "", u.presence?.name || ""].map((s) =>
-    String(s).toLowerCase()
-  );
-  return parts.some((p) => p.includes(qLower));
+  const hay = `${u.uid}\n${u.email || ""}\n${u.displayName || ""}\n${u.presence?.name || ""}`.toLowerCase();
+  return hay.includes(qLower);
 }
+
+function presenceLastInAppLabel(p) {
+  if (p.isOnline && p.sessionSince) {
+    return `Since ${formatWhen(p.sessionSince)}`;
+  }
+  if (p.lastOnlineAt) {
+    return formatWhen(p.lastOnlineAt);
+  }
+  if (p.hasConnectedToApp === false) {
+    return "Never (this server)";
+  }
+  return "—";
+}
+
+function RefreshToolbarIcon() {
+  return (
+    <svg className={styles.toolbarIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+      />
+      <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M3 3v5h5" />
+      <path
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"
+      />
+      <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M16 21h5v-5" />
+    </svg>
+  );
+}
+
+/**
+ * @param {{
+ *   u: Record<string, unknown>,
+ *   isFullAdmin: boolean,
+ *   menuOpenUid: string | null,
+ *   onToggleMenu: (uid: string) => void,
+ *   onOpenEdit: (u: Record<string, unknown>) => void,
+ *   onToggleDisabled: (u: Record<string, unknown>) => void,
+ *   onRemove: (u: Record<string, unknown>) => void,
+ * }} props
+ */
+const AdminUserTableRow = memo(function AdminUserTableRow({
+  u,
+  isFullAdmin,
+  menuOpenUid,
+  onToggleMenu,
+  onOpenEdit,
+  onToggleDisabled,
+  onRemove,
+}) {
+  const p = u.presence || {};
+  const lastInApp = presenceLastInAppLabel(p);
+  const menuOpen = menuOpenUid === u.uid;
+
+  return (
+    <tr className={u.disabled ? styles.rowDisabled : undefined}>
+      <td>
+        <code className={styles.uid}>{String(u.uid).slice(0, 8)}…</code>
+        <br />
+        {u.email || "—"}
+      </td>
+      <td>{u.displayName || "—"}</td>
+      <td>{u.disabled ? "Disabled" : "Active"}</td>
+      <td>
+        {p.isOnline ? <span className={styles.badgeOn}>Online</span> : <span className={styles.badgeOff}>Offline</span>}
+      </td>
+      <td title="Name from ID token on last connect">{p.name || "—"}</td>
+      <td className={styles.nowrap}>{lastInApp}</td>
+      <td>{u.lastSignInTime || "—"}</td>
+      <td className={styles.actions}>
+        {isFullAdmin ? (
+          <div className={styles.actionMenuWrap} data-action-menu={u.uid}>
+            <button
+              type="button"
+              className={styles.actionMenuTrigger}
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+              {...(menuOpen ? { "aria-controls": `user-actions-${u.uid}` } : {})}
+              id={`user-actions-btn-${u.uid}`}
+              onClick={() => onToggleMenu(u.uid)}
+            >
+              <span className={styles.srOnly}>User actions</span>
+              <svg className={styles.kebabIcon} viewBox="0 0 24 24" aria-hidden>
+                <circle cx="12" cy="5" r="2" fill="currentColor" />
+                <circle cx="12" cy="12" r="2" fill="currentColor" />
+                <circle cx="12" cy="19" r="2" fill="currentColor" />
+              </svg>
+            </button>
+            {menuOpen ? (
+              <ul
+                id={`user-actions-${u.uid}`}
+                className={styles.actionMenu}
+                role="menu"
+                aria-labelledby={`user-actions-btn-${u.uid}`}
+              >
+                <li role="none">
+                  <button type="button" className={styles.actionMenuItem} role="menuitem" onClick={() => onOpenEdit(u)}>
+                    Edit…
+                  </button>
+                </li>
+                <li role="none">
+                  <button
+                    type="button"
+                    className={styles.actionMenuItem}
+                    role="menuitem"
+                    onClick={() => onToggleDisabled(u)}
+                  >
+                    {u.disabled ? "Enable account" : "Disable account"}
+                  </button>
+                </li>
+                <li role="none">
+                  <button
+                    type="button"
+                    className={`${styles.actionMenuItem} ${styles.actionMenuItemDanger}`}
+                    role="menuitem"
+                    onClick={() => onRemove(u)}
+                  >
+                    Delete…
+                  </button>
+                </li>
+              </ul>
+            ) : null}
+          </div>
+        ) : (
+          <span className={styles.muted}>—</span>
+        )}
+      </td>
+    </tr>
+  );
+});
 
 /**
  * @param {{ user: { uid: string, email?: string | null, role?: string | null }, isFullAdmin: boolean }} props
@@ -69,10 +202,18 @@ export function AdminUsersPage({ user, isFullAdmin }) {
   const [apiSearchUsers, setApiSearchUsers] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
+  /** Server search already completed for this exact query (skip refetch when only `users` grows). */
+  const serverSearchDoneFor = useRef("");
+  const searchFlightId = useRef(0);
+  const actionMenuRootRef = useRef(null);
 
   const load = useCallback(
     async (pageToken) => {
       setError("");
+      if (pageToken === undefined) {
+        serverSearchDoneFor.current = "";
+        searchFlightId.current += 1;
+      }
       setLoading(true);
       try {
         const res = await adminListUsers(pageToken);
@@ -126,43 +267,51 @@ export function AdminUsersPage({ user, isFullAdmin }) {
 
   useEffect(() => {
     if (!debouncedSearch) {
+      searchFlightId.current += 1;
+      serverSearchDoneFor.current = "";
       setApiSearchUsers([]);
       setSearchLoading(false);
       setSearchError("");
       return undefined;
     }
     const qLower = debouncedSearch.toLowerCase();
-    const local = users.filter((u) => userMatchesSearch(u, qLower));
+    const local = users.filter((x) => userMatchesSearch(x, qLower));
     if (local.length > 0) {
+      serverSearchDoneFor.current = "";
       setApiSearchUsers([]);
       setSearchLoading(false);
       setSearchError("");
       return undefined;
     }
-    let cancelled = false;
+    if (serverSearchDoneFor.current === debouncedSearch) {
+      return undefined;
+    }
+    const flight = ++searchFlightId.current;
     setSearchLoading(true);
     setSearchError("");
     setApiSearchUsers([]);
     void adminSearchUsers(debouncedSearch)
       .then((res) => {
-        if (!cancelled) {
-          setApiSearchUsers(Array.isArray(res.users) ? res.users : []);
+        if (flight !== searchFlightId.current) {
+          return;
         }
+        setApiSearchUsers(Array.isArray(res.users) ? res.users : []);
+        serverSearchDoneFor.current = debouncedSearch;
       })
       .catch((e) => {
-        if (!cancelled) {
-          setApiSearchUsers([]);
-          setSearchError(e.data?.error || e.message || "Search failed");
+        if (flight !== searchFlightId.current) {
+          return;
         }
+        setApiSearchUsers([]);
+        setSearchError(e.data?.error || e.message || "Search failed");
+        serverSearchDoneFor.current = debouncedSearch;
       })
       .finally(() => {
-        if (!cancelled) {
+        if (flight === searchFlightId.current) {
           setSearchLoading(false);
         }
       });
-    return () => {
-      cancelled = true;
-    };
+    return undefined;
   }, [debouncedSearch, users]);
 
   useEffect(() => {
@@ -202,7 +351,7 @@ export function AdminUsersPage({ user, isFullAdmin }) {
     }
   };
 
-  const openEdit = (u) => {
+  const openEdit = useCallback((u) => {
     setActionsMenuUid(null);
     setCreateModalOpen(false);
     setEditing(u);
@@ -211,20 +360,27 @@ export function AdminUsersPage({ user, isFullAdmin }) {
       email: u.email || "",
       disabled: !!u.disabled,
     });
-  };
+  }, []);
 
-  const closeEdit = () => {
+  const closeEdit = useCallback(() => {
     setEditing(null);
-  };
+  }, []);
+
+  const handleToggleActionMenu = useCallback((uid) => {
+    setActionsMenuUid((open) => (open === uid ? null : uid));
+  }, []);
 
   useEffect(() => {
     if (!actionsMenuUid) {
+      actionMenuRootRef.current = null;
       return undefined;
     }
+    actionMenuRootRef.current = document.querySelector(`[data-action-menu="${actionsMenuUid}"]`);
     const close = () => setActionsMenuUid(null);
     const onDocMouseDown = (e) => {
       const el = e.target;
-      if (el instanceof Node && !document.querySelector(`[data-action-menu="${actionsMenuUid}"]`)?.contains(el)) {
+      const root = actionMenuRootRef.current;
+      if (el instanceof Node && root && !root.contains(el)) {
         close();
       }
     };
@@ -238,6 +394,7 @@ export function AdminUsersPage({ user, isFullAdmin }) {
     return () => {
       document.removeEventListener("mousedown", onDocMouseDown);
       document.removeEventListener("keydown", onKey);
+      actionMenuRootRef.current = null;
     };
   }, [actionsMenuUid]);
 
@@ -277,7 +434,7 @@ export function AdminUsersPage({ user, isFullAdmin }) {
     }
   };
 
-  const toggleDisabled = async (u) => {
+  const toggleDisabled = useCallback(async (u) => {
     if (!window.confirm(`Set account ${u.disabled ? "enabled" : "disabled"} for ${u.email || u.uid}?`)) {
       return;
     }
@@ -288,29 +445,53 @@ export function AdminUsersPage({ user, isFullAdmin }) {
     } catch (err) {
       setError(err.data?.error || err.message);
     }
-  };
+  }, []);
 
-  const remove = async (u) => {
-    if (u.uid === user?.uid) {
-      window.alert("You cannot delete your own account from this screen.");
-      return;
-    }
-    if (!window.confirm(`Permanently delete user ${u.email || u.uid}? This cannot be undone.`)) {
-      return;
-    }
+  const remove = useCallback(
+    async (u) => {
+      if (u.uid === user?.uid) {
+        window.alert("You cannot delete your own account from this screen.");
+        return;
+      }
+      if (!window.confirm(`Permanently delete user ${u.email || u.uid}? This cannot be undone.`)) {
+        return;
+      }
+      setError("");
+      try {
+        await adminDeleteUser(u.uid);
+        setUsers((list) => list.filter((x) => x.uid !== u.uid));
+      } catch (err) {
+        setError(err.data?.error || err.message);
+      }
+    },
+    [user?.uid]
+  );
+
+  const handleRowToggleDisabled = useCallback(
+    (u) => {
+      setActionsMenuUid(null);
+      void toggleDisabled(u);
+    },
+    [toggleDisabled]
+  );
+
+  const handleRowRemove = useCallback(
+    (u) => {
+      setActionsMenuUid(null);
+      void remove(u);
+    },
+    [remove]
+  );
+
+  const handleRefreshList = useCallback(() => {
+    void load(undefined);
+  }, [load]);
+
+  const handleOpenCreateUser = useCallback(() => {
     setError("");
-    try {
-      await adminDeleteUser(u.uid);
-      setUsers((list) => list.filter((x) => x.uid !== u.uid));
-    } catch (err) {
-      setError(err.data?.error || err.message);
-    }
-  };
-
-  const onLogout = async () => {
-    const auth = getFirebaseAuth();
-    await signOut(auth);
-  };
+    setEditing(null);
+    setCreateModalOpen(true);
+  }, []);
 
   return (
     <div className={styles.wrap}>
@@ -322,30 +503,6 @@ export function AdminUsersPage({ user, isFullAdmin }) {
             {isFullAdmin ? " (full admin)" : " (moderator)"}. Server rules: moderators can list and create users; only
             the configured admin email can edit, disable, or delete accounts.
           </p>
-        </div>
-        <div className={styles.topActions}>
-          <button
-            type="button"
-            className={styles.secondary}
-            onClick={() => void load(undefined)}
-            disabled={loading}
-          >
-            Refresh list
-          </button>
-          <button
-            type="button"
-            className={styles.primary}
-            onClick={() => {
-              setError("");
-              setEditing(null);
-              setCreateModalOpen(true);
-            }}
-          >
-            Create user
-          </button>
-          <button type="button" className={styles.secondary} onClick={() => void onLogout()}>
-            Log out
-          </button>
         </div>
       </header>
 
@@ -362,6 +519,16 @@ export function AdminUsersPage({ user, isFullAdmin }) {
           Search users
         </label>
         <div className={styles.searchRow}>
+          <button
+            type="button"
+            className={styles.toolbarIconBtn}
+            data-tooltip="Refresh list"
+            aria-label="Refresh list"
+            onClick={handleRefreshList}
+            disabled={loading}
+          >
+            <RefreshToolbarIcon />
+          </button>
           <input
             id="admin-user-search"
             type="search"
@@ -372,11 +539,9 @@ export function AdminUsersPage({ user, isFullAdmin }) {
             autoComplete="off"
             spellCheck={false}
           />
-          {userSearch ? (
-            <button type="button" className={styles.secondary} onClick={() => setUserSearch("")}>
-              Clear
-            </button>
-          ) : null}
+          <button type="button" className={`${styles.primary} ${styles.toolbarCreateBtn}`} onClick={handleOpenCreateUser}>
+            Create user
+          </button>
         </div>
         {debouncedSearch ? (
           <p className={styles.searchMeta} role="status">
@@ -428,102 +593,18 @@ export function AdminUsersPage({ user, isFullAdmin }) {
                   </td>
                 </tr>
               ) : (
-                displayedUsers.map((u) => {
-                const p = u.presence || {};
-                let lastInApp = "—";
-                if (p.isOnline && p.sessionSince) {
-                  lastInApp = `Since ${formatWhen(p.sessionSince)}`;
-                } else if (p.lastOnlineAt) {
-                  lastInApp = formatWhen(p.lastOnlineAt);
-                } else if (p.hasConnectedToApp === false) {
-                  lastInApp = "Never (this server)";
-                }
-                return (
-                <tr key={u.uid} className={u.disabled ? styles.rowDisabled : undefined}>
-                  <td>
-                    <code className={styles.uid}>{u.uid.slice(0, 8)}…</code>
-                    <br />
-                    {u.email || "—"}
-                  </td>
-                  <td>{u.displayName || "—"}</td>
-                  <td>{u.disabled ? "Disabled" : "Active"}</td>
-                  <td>
-                    {p.isOnline ? (
-                      <span className={styles.badgeOn}>Online</span>
-                    ) : (
-                      <span className={styles.badgeOff}>Offline</span>
-                    )}
-                  </td>
-                  <td title="Name from ID token on last connect">{p.name || "—"}</td>
-                  <td className={styles.nowrap}>{lastInApp}</td>
-                  <td>{u.lastSignInTime || "—"}</td>
-                  <td className={styles.actions}>
-                    {isFullAdmin ? (
-                      <div className={styles.actionMenuWrap} data-action-menu={u.uid}>
-                        <button
-                          type="button"
-                          className={styles.actionMenuTrigger}
-                          aria-expanded={actionsMenuUid === u.uid}
-                          aria-haspopup="menu"
-                          {...(actionsMenuUid === u.uid ? { "aria-controls": `user-actions-${u.uid}` } : {})}
-                          id={`user-actions-btn-${u.uid}`}
-                          onClick={() => setActionsMenuUid((open) => (open === u.uid ? null : u.uid))}
-                        >
-                          <span className={styles.srOnly}>User actions</span>
-                          <svg className={styles.kebabIcon} viewBox="0 0 24 24" aria-hidden>
-                            <circle cx="12" cy="5" r="2" fill="currentColor" />
-                            <circle cx="12" cy="12" r="2" fill="currentColor" />
-                            <circle cx="12" cy="19" r="2" fill="currentColor" />
-                          </svg>
-                        </button>
-                        {actionsMenuUid === u.uid ? (
-                          <ul
-                            id={`user-actions-${u.uid}`}
-                            className={styles.actionMenu}
-                            role="menu"
-                            aria-labelledby={`user-actions-btn-${u.uid}`}
-                          >
-                            <li role="none">
-                              <button type="button" className={styles.actionMenuItem} role="menuitem" onClick={() => openEdit(u)}>
-                                Edit…
-                              </button>
-                            </li>
-                            <li role="none">
-                              <button
-                                type="button"
-                                className={styles.actionMenuItem}
-                                role="menuitem"
-                                onClick={() => {
-                                  setActionsMenuUid(null);
-                                  void toggleDisabled(u);
-                                }}
-                              >
-                                {u.disabled ? "Enable account" : "Disable account"}
-                              </button>
-                            </li>
-                            <li role="none">
-                              <button
-                                type="button"
-                                className={`${styles.actionMenuItem} ${styles.actionMenuItemDanger}`}
-                                role="menuitem"
-                                onClick={() => {
-                                  setActionsMenuUid(null);
-                                  void remove(u);
-                                }}
-                              >
-                                Delete…
-                              </button>
-                            </li>
-                          </ul>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <span className={styles.muted}>—</span>
-                    )}
-                  </td>
-                </tr>
-                );
-              })
+                displayedUsers.map((u) => (
+                  <AdminUserTableRow
+                    key={u.uid}
+                    u={u}
+                    isFullAdmin={isFullAdmin}
+                    menuOpenUid={actionsMenuUid}
+                    onToggleMenu={handleToggleActionMenu}
+                    onOpenEdit={openEdit}
+                    onToggleDisabled={handleRowToggleDisabled}
+                    onRemove={handleRowRemove}
+                  />
+                ))
               )}
             </tbody>
           </table>

@@ -17,6 +17,32 @@ import { useSessionSocket } from "../../hooks/useSessionSocket";
 import { GroupYouTubePlayer } from "../../components/GroupYouTubePlayer/GroupYouTubePlayer";
 import styles from "./GroupDetailPage.module.scss";
 
+/** @param {string | undefined} name @param {string} uid */
+function memberInitials(name, uid) {
+  const s = (name || "").trim();
+  if (s.length >= 2) {
+    return (s[0] + s[s.length - 1]).toUpperCase();
+  }
+  if (s.length === 1) {
+    return s[0].toUpperCase();
+  }
+  return (uid || "?").slice(0, 2).toUpperCase();
+}
+
+function BackArrowIcon() {
+  return (
+    <svg className={styles.backIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M15 6l-6 6 6 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /**
  * @param {{ user: { uid: string } }} props
  */
@@ -229,13 +255,29 @@ export function GroupDetailPage({ user }) {
   };
 
   if (loading) {
-    return <p className={styles.wrap}>Loading…</p>;
+    return (
+      <div className={styles.wrap}>
+        <div className={styles.pageLoading} role="status">
+          <div className={styles.loadingDots} aria-hidden>
+            <span className={styles.loadingDot} />
+            <span className={styles.loadingDot} />
+            <span className={styles.loadingDot} />
+          </div>
+          <span>Loading group…</span>
+        </div>
+      </div>
+    );
   }
   if (err && !detail) {
     return (
       <div className={styles.wrap}>
-        <p className={styles.err}>{err}</p>
-        <Link to="/groups">Back to groups</Link>
+        <div className={styles.pageError}>
+          <p className={styles.err}>{err}</p>
+          <Link to="/groups" className={styles.back}>
+            <BackArrowIcon />
+            All groups
+          </Link>
+        </div>
       </div>
     );
   }
@@ -248,65 +290,92 @@ export function GroupDetailPage({ user }) {
 
   return (
     <div className={styles.wrap}>
-      <header className={styles.top}>
-        <div>
-          <h1>{g.name}</h1>
-          {g.description && <p className={styles.desc}>{g.description}</p>}
-        </div>
-        <Link to="/groups" className={styles.back}>
-          All groups
-        </Link>
-      </header>
-      {err && <p className={styles.err}>{err}</p>}
+      {err ? <p className={styles.err}>{err}</p> : null}
 
       <section className={styles.card}>
-        <h2>Membership</h2>
-        {d.isMember && (
-          <p className={styles.badgeIn}>
-            You are a member
-            {d.isAdmin && " (admin)"}
-          </p>
-        )}
-        {!d.isMember && !d.hasPendingRequest && (
-          <button type="button" className={styles.primary} onClick={() => void onJoin()}>
-            Request to join
-          </button>
-        )}
-        {!d.isMember && d.hasPendingRequest && <p className={styles.muted}>Your request is pending admin approval.</p>}
-        {d.isMember && d.isAdmin && (
-          <button type="button" className={styles.danger} onClick={() => void onCloseGroup()}>
-            Close group
-          </button>
-        )}
-        {d.isMember && !d.isAdmin && (
-          <button type="button" className={styles.danger} onClick={() => void onLeave()}>
-            Leave group
-          </button>
-        )}
+        <div className={styles.groupHead}>
+          <div className={styles.groupHeadMain}>
+            <h1 className={styles.title}>{g.name}</h1>
+            {g.description ? <p className={styles.desc}>{g.description}</p> : null}
+          </div>
+          <Link to="/groups" className={styles.back}>
+            <BackArrowIcon />
+            All groups
+          </Link>
+        </div>
+        <div className={styles.memTop}>
+          <div className={styles.cardHeadRow}>
+            <h2 className={styles.cardTitle}>Members ({d.members?.length || 0})</h2>
+            <div className={styles.cardHeadActions}>
+              {!d.isMember && !d.hasPendingRequest ? (
+                <button type="button" className={styles.primary} onClick={() => void onJoin()}>
+                  Request to join
+                </button>
+              ) : null}
+              {!d.isMember && d.hasPendingRequest ? (
+                <p className={styles.pendingInline}>Your request is pending admin approval.</p>
+              ) : null}
+              {d.isMember ? (
+                <p className={styles.badgeIn}>
+                  You’re a member
+                  {d.isAdmin ? " · Admin" : ""}
+                </p>
+              ) : null}
+              {d.isMember && d.isAdmin ? (
+                <button type="button" className={styles.danger} onClick={() => void onCloseGroup()}>
+                  Close group
+                </button>
+              ) : null}
+              {d.isMember && !d.isAdmin ? (
+                <button type="button" className={styles.danger} onClick={() => void onLeave()}>
+                  Leave group
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {d.isAdmin && d.joinRequests?.length > 0 ? (
+            <>
+              <h3 className={styles.cardSubTitle}>Join requests</h3>
+              <ul className={styles.reqList}>
+                {d.joinRequests.map((r) => (
+                  <li key={r.uid} className={styles.reqItem}>
+                    <span className={styles.reqName}>{r.name || r.uid}</span>
+                    <div className={styles.reqActions}>
+                      <button type="button" className={styles.small} onClick={() => void accept(r.uid)}>
+                        Accept
+                      </button>
+                      <button type="button" className={styles.smallMuted} onClick={() => void reject(r.uid)}>
+                        Reject
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </div>
+
+        <ul className={styles.memList}>
+          {d.members?.map((m) => (
+            <li key={m.uid} className={styles.memRow}>
+              <span className={styles.memAvatar} aria-hidden>
+                {memberInitials(m.name, m.uid)}
+              </span>
+              <div className={styles.memMain}>
+                <span className={styles.memName}>{m.name}</span>
+                {m.role === "admin" ? <span className={styles.adminBadge}>Admin</span> : null}
+              </div>
+              {d.isAdmin && m.uid !== user?.uid ? (
+                <button type="button" className={styles.linkBtn} onClick={() => void remove(m.uid)}>
+                  Remove
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
       </section>
 
-      {d.isAdmin && d.joinRequests?.length > 0 && (
-        <section className={styles.card}>
-          <h2>Join requests</h2>
-          <ul className={styles.reqList}>
-            {d.joinRequests.map((r) => (
-              <li key={r.uid} className={styles.reqItem}>
-                <span>{r.name || r.uid}</span>
-                <div>
-                  <button type="button" className={styles.small} onClick={() => void accept(r.uid)}>
-                    Accept
-                  </button>
-                  <button type="button" className={styles.smallMuted} onClick={() => void reject(r.uid)}>
-                    Reject
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {d.isMember && (
+      {d.isMember ? (
         <section className={styles.card}>
           <GroupYouTubePlayer
             key={groupId}
@@ -317,38 +386,27 @@ export function GroupDetailPage({ user }) {
             user={user}
           />
         </section>
-      )}
+      ) : null}
 
-      <section className={styles.card}>
-        <h2>Members ({d.members?.length || 0})</h2>
-        <ul className={styles.memList}>
-          {d.members?.map((m) => (
-            <li key={m.uid}>
-              {m.name} {m.role === "admin" && <em>(admin)</em>}
-              {d.isAdmin && m.uid !== user?.uid && (
-                <button type="button" className={styles.linkBtn} onClick={() => void remove(m.uid)}>
-                  Remove
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {d.isMember && (
+      {d.isMember ? (
         <section className={styles.card}>
-          <h2>Chat</h2>
-          {msgErr && <p className={styles.err}>{msgErr}</p>}
+          <h2 className={styles.cardTitle}>Chat</h2>
+          {msgErr ? <p className={styles.err}>{msgErr}</p> : null}
           <div className={styles.chatLog} ref={logRef}>
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={m.fromUid === user?.uid ? styles.mine : styles.them}
-              >
-                <span className={styles.from}>{m.fromName}:</span> {m.text}
-                <div className={styles.at}>{m.createdAt ? new Date(m.createdAt).toLocaleString() : ""}</div>
-              </div>
-            ))}
+            {messages.map((m) => {
+              const mine = m.fromUid === user?.uid;
+              return (
+                <div key={m.id} className={`${styles.msg} ${mine ? styles.msgMine : styles.msgThem}`}>
+                  <div className={styles.msgBubble}>
+                    <span className={styles.msgAuthor}>{m.fromName}</span>
+                    <p className={styles.msgText}>{m.text}</p>
+                    <time className={styles.msgAt} dateTime={m.createdAt || undefined}>
+                      {m.createdAt ? new Date(m.createdAt).toLocaleString() : ""}
+                    </time>
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <form onSubmit={send} className={styles.chatForm}>
             <input
@@ -362,7 +420,7 @@ export function GroupDetailPage({ user }) {
             </button>
           </form>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }

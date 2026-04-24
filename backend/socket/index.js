@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { avatarUrlForUid } from "../lib/peerAvatarUrl.js";
 import { verifyIdToken } from "../lib/firebaseAdmin.js";
 import { registerConnection, unregisterConnection } from "../lib/onlineRegistry.js";
 import * as presence from "../lib/presence.js";
@@ -117,14 +118,22 @@ function initSocket(io) {
       b.data.inMatch = true;
       uidToMatchId.set(m.a.uid, matchId);
       uidToMatchId.set(m.b.uid, matchId);
+      const aSelfUrl = avatarUrlForUid(a.data.uid);
+      const bSelfUrl = avatarUrlForUid(b.data.uid);
       a.emit("match:found", {
         matchId,
         peerSocketId: b.id,
+        peerUid: b.data.uid,
+        selfAvatarUrl: aSelfUrl,
+        peerAvatarUrl: bSelfUrl,
         isInitiator: true,
       });
       b.emit("match:found", {
         matchId,
         peerSocketId: a.id,
+        peerUid: a.data.uid,
+        selfAvatarUrl: bSelfUrl,
+        peerAvatarUrl: aSelfUrl,
         isInitiator: false,
       });
     }
@@ -196,6 +205,12 @@ function initSocket(io) {
       presence.increment();
       socket.data.presenceCounted = true;
       io.emit("presence:count", presence.get());
+      const uidForAvatar = decoded.uid;
+      setImmediate(() => {
+        if (socket.connected) {
+          socket.emit("session:self", { selfAvatarUrl: avatarUrlForUid(uidForAvatar) });
+        }
+      });
     } catch (e) {
       console.warn("Socket auth failed", e.message);
       return socket.disconnect(true);
@@ -211,6 +226,7 @@ function initSocket(io) {
       if (uidToMatchId.has(socket.data.uid)) {
         return;
       }
+      socket.emit("session:self", { selfAvatarUrl: avatarUrlForUid(socket.data.uid) });
       queue.push(socket.id);
       inQueue.add(socket.id);
       tryMatch();
