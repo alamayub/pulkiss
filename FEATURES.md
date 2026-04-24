@@ -7,16 +7,19 @@ This document lists what the app does today. For setup and run instructions, see
 - **Firebase Authentication** in the browser: sign in with **email and password** (log in or **register** via `POST /api/auth/register`, which always assigns role **user** and returns a custom token) or **Google**. Optional **account linking** when the same email exists on another provider.
 - **Protected routes**: the home **random match** experience, **Groups**, and **User management** require a signed-in user; unauthenticated visitors see the auth screen.
 - **Global UI**: loading state during auth bootstrap, **toast** notifications for errors and important events (including **info** toasts for group join activity).
+- **Theme**: **light** or **dark** mode from the shell header; choice is stored in `localStorage` and the initial default follows **`prefers-color-scheme`** when none is saved. Other tabs pick up changes via the **`storage`** event. `theme-color` updates for mobile browser chrome.
 - **API and Socket access**: the client sends a Firebase **ID token** on HTTP (`Authorization: Bearer …`) and on the Socket.io handshake. The backend verifies tokens with Firebase Admin and never stores passwords.
 
 ## Pulkiss home (random match, `/`)
 
 - **Random 1:1 matching**: join a **queue**; when two different users are waiting, the server pairs them and starts a **match** session.
 - **WebRTC video and audio** between the two peers, using signaling over Socket.io (`rtc:offer`, `rtc:answer`, `rtc:ice`). ICE servers can be configured on the API (default includes a public STUN server).
+- **Avatars (deterministic, server-built)**: after auth, the socket may receive **`session:self`** with `selfAvatarUrl`. On **`match:found`**, each client gets **`selfAvatarUrl`** and **`peerAvatarUrl`** built on the API from Firebase UIDs (DiceBear **Notionists** SVG over HTTPS; same URL for every client for a given uid). The UI shows a **corner** avatar during a call and a **large centered** image when local or remote video is off, paused, or not decoded yet (loading / stalled WebRTC).
+- **Camera and microphone**: **toggle video** and **toggle mic** while searching or in a call (local `MediaStreamTrack.enabled`). The remote tile reflects when the **peer’s camera is off** (track disabled or ended).
 - **In-match text chat** (per match, not persisted after the call ends; messages are relayed through the server).
 - **End call / leave queue**; **“Next”** to skip the current match and return both parties to a state where they can search again.
 - **Presence count**: number of **connected, authenticated** sockets (for this server process) shown on the room; updates live and via `GET /api/presence`.
-- **Disconnect handling**: if a peer leaves or disconnects, the other user is notified and the match ends.
+- **Disconnect handling**: if a peer leaves or disconnects, the other user is notified and the match ends. When a match ends from **Next**, disconnect, or other reasons, the home page can show **warning toasts** in addition to inline status text.
 
 ## Groups (in-memory)
 

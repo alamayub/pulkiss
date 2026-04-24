@@ -2,8 +2,8 @@
 
 A split-stack app (**Pulkiss**): **1:1 random video chat with text**, **in-memory groups** with **chat and synchronized YouTube watch-together**, plus **user management** (admin and moderators) for Firebase accounts. **See [FEATURES.md](FEATURES.md)** for a full feature list.
 
-- **Backend** ([`backend/`](backend/)) — Express + Socket.io, **Firebase Admin** to verify client ID tokens. **Groups, group chat, and the group YouTube player** live in **this server’s memory** (not a database; restart clears them, and a second Node process will not see the same data). The admin user list uses the Firebase **Auth** API.
-- **Frontend** ([`frontend/`](frontend/)) — Vite, React, Redux Toolkit, SCSS, Firebase client (email/password + Google), Socket.io client.
+- **Backend** ([`backend/`](backend/)) — Express + Socket.io, **Firebase Admin** to verify client ID tokens; **DiceBear-based avatar URLs** for random-match sessions (seeded by uid, no API key). **Groups, group chat, and the group YouTube player** live in **this server’s memory** (not a database; restart clears them, and a second Node process will not see the same data). The admin user list uses the Firebase **Auth** API.
+- **Frontend** ([`frontend/`](frontend/)) — Vite, React, Redux Toolkit, SCSS, Firebase client (email/password + Google), Socket.io client; **light/dark theme** (persisted), and the random-match screen with **server-built DiceBear avatars**, **camera/mic toggles**, and placeholders while video is loading.
 
 The **backend** and **frontend** are separate npm projects: run `npm install` in each folder and use the scripts in `backend/package.json` and `frontend/package.json`.
 
