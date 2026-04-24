@@ -1,18 +1,99 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { fetchPresenceCount } from "../../lib/api";
-import { setOnlineCount } from "../../app/roomSlice";
+import { useDispatch } from "react-redux";
 import { addToast } from "../../app/uiSlice";
 import { useSessionSocket } from "../../hooks/useSessionSocket";
 import { useStrangerCall } from "../../hooks/useStrangerCall";
 import styles from "./RoomPage.module.scss";
+
+function ControlIcon({ children }) {
+  return (
+    <svg
+      className={styles.ctrlIcon}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {children}
+    </svg>
+  );
+}
+
+function IconStart() {
+  return (
+    <ControlIcon>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M10.5 8.5L15.5 12l-5 3.5v-7z" fill="currentColor" stroke="none" />
+    </ControlIcon>
+  );
+}
+
+function IconStop() {
+  return (
+    <ControlIcon>
+      <rect x="5" y="5" width="14" height="14" rx="1" />
+    </ControlIcon>
+  );
+}
+
+function IconNext() {
+  return (
+    <ControlIcon>
+      <path d="M3 4v16l8.5-8L3 4z" fill="currentColor" stroke="none" />
+      <path d="M12.5 4v16L21 12l-8.5-8z" fill="currentColor" stroke="none" />
+    </ControlIcon>
+  );
+}
+
+function IconVideo() {
+  return (
+    <ControlIcon>
+      <rect x="2" y="6" width="14" height="12" rx="2" />
+      <path d="M16 10l5-2.5V16.5L16 14v-4z" fill="currentColor" stroke="none" />
+    </ControlIcon>
+  );
+}
+
+function IconVideoOff() {
+  return (
+    <ControlIcon>
+      <line x1="1" y1="1" x2="23" y2="23" />
+      <rect x="2" y="6" width="14" height="12" rx="2" />
+      <path d="M16 10l4-2v2.2M7 3.5a4.5 4.5 0 0 0-4.5 4.5" />
+    </ControlIcon>
+  );
+}
+
+function IconMic() {
+  return (
+    <ControlIcon>
+      <path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+      <path d="M19 10v1a7 7 0 0 1-14 0v-1" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
+    </ControlIcon>
+  );
+}
+
+function IconMicOff() {
+  return (
+    <ControlIcon>
+      <line x1="1" y1="1" x2="23" y2="23" />
+      <path d="M12 1a3 3 0 0 0-3 3v3.2M8 5a4.5 4.5 0 0 0 7 0" />
+      <path d="M19 10v1a7 7 0 0 1-11.6 5.1M12 19v4" />
+      <line x1="8" y1="23" x2="16" y2="23" />
+    </ControlIcon>
+  );
+}
 
 /**
  * @param {{ user: { uid: string, email?: string | null, displayName?: string | null, phoneNumber?: string | null, photoURL?: string | null } }} props
  */
 export function RoomPage({ user }) {
   const dispatch = useDispatch();
-  const online = useSelector((s) => s.room.onlineCount);
   const localRef = useRef(null);
   const remoteRef = useRef(null);
   const { socket } = useSessionSocket(user?.uid);
@@ -42,84 +123,84 @@ export function RoomPage({ user }) {
     canChat,
     chatLines,
     videoEnabled,
+    audioEnabled,
     startSearch,
     stopSearch,
     next,
     sendMessage,
     toggleVideo,
+    toggleAudio,
   } = useStrangerCall(socket, localRef, remoteRef, { onMatchEnd });
   const [chatInput, setChatInput] = useState("");
 
-  useEffect(() => {
-    void fetchPresenceCount().then((c) => dispatch(setOnlineCount(c)));
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (!socket) return undefined;
-    const onCount = (n) => {
-      if (typeof n === "number") {
-        dispatch(setOnlineCount(n));
-      }
-    };
-    socket.on("connect", () => {
-      void fetchPresenceCount().then((c) => dispatch(setOnlineCount(c)));
-    });
-    socket.on("presence:count", onCount);
-    return () => {
-      socket.off("presence:count", onCount);
-    };
-  }, [socket, dispatch]);
-
   return (
     <div className={styles.wrap}>
-      <header className={styles.top}>
-        <h1 className={styles.roomTitle}>Match</h1>
-        <div className={styles.badge} title="Users currently connected to this app">
-          <span>Online</span> <strong>{online}</strong>
-        </div>
-      </header>
-
-      <p className={styles.status}>{searchStatus}</p>
-      <div className={styles.tools}>
-        <button
-          type="button"
-          className={styles.primary}
-          onClick={() => void startSearch()}
-          disabled={!socket?.connected || inQueue || inCall}
-        >
-          Start
-        </button>
-        <button
-          type="button"
-          className={styles.secondary}
-          onClick={stopSearch}
-          disabled={!inQueue}
-        >
-          Stop
-        </button>
-        <button type="button" className={styles.danger} onClick={next} disabled={!inCall}>
-          Next
-        </button>
-        <button
-          type="button"
-          className={videoEnabled ? styles.secondary : styles.videoOff}
-          onClick={toggleVideo}
-          disabled={!inQueue && !inCall}
-          aria-pressed={videoEnabled}
-          title={videoEnabled ? "Turn camera off" : "Turn camera on"}
-        >
-          {videoEnabled ? "Video on" : "Video off"}
-        </button>
-      </div>
 
       <div className={styles.videos}>
-        <div>
-          <p className={styles.label}>You</p>
-          <video ref={localRef} className={styles.vid} playsInline autoPlay muted />
+        <p className={styles.status} role="status" aria-live="polite">
+          {searchStatus}
+        </p>
+        <div className={styles.matchStage}>
+          <p className={styles.labelMatch}>Match</p>
+          <video ref={remoteRef} className={styles.vidRemote} playsInline autoPlay />
         </div>
-        <div>
-          <p className={styles.label}>Match</p>
-          <video ref={remoteRef} className={styles.vid} playsInline autoPlay />
+        <div className={styles.pip}>
+          <p className={styles.pipLabel}>You</p>
+          <video ref={localRef} className={styles.vidPip} playsInline autoPlay muted />
+        </div>
+        <div className={styles.callControls} role="toolbar" aria-label="Call controls">
+          <button
+            type="button"
+            className={styles.iconBtnPrimary}
+            onClick={() => void startSearch()}
+            disabled={!socket?.connected || inQueue || inCall}
+            data-tooltip="Start matching"
+            aria-label="Start matching"
+          >
+            <IconStart />
+          </button>
+          <button
+            type="button"
+            className={styles.iconBtnNeutral}
+            onClick={stopSearch}
+            disabled={!inQueue}
+            data-tooltip="Stop search"
+            aria-label="Stop search"
+          >
+            <IconStop />
+          </button>
+          <button
+            type="button"
+            className={styles.iconBtnDanger}
+            onClick={next}
+            disabled={!inCall}
+            data-tooltip="Skip to next match"
+            aria-label="Next match"
+          >
+            <IconNext />
+          </button>
+          <button
+            type="button"
+            className={videoEnabled ? styles.iconBtnNeutral : styles.iconBtnOff}
+            onClick={toggleVideo}
+            disabled={!inQueue && !inCall}
+            aria-pressed={videoEnabled}
+            data-tooltip={videoEnabled ? "Turn camera off" : "Turn camera on"}
+            aria-label={videoEnabled ? "Turn camera off" : "Turn camera on"}
+          >
+            {videoEnabled ? <IconVideo /> : <IconVideoOff />}
+          </button>
+          <button
+            type="button"
+            className={audioEnabled ? styles.iconBtnNeutral : styles.iconBtnOff}
+            onClick={toggleAudio}
+            disabled={!inQueue && !inCall}
+            aria-pressed={audioEnabled}
+            data-tooltip={audioEnabled ? "Mute microphone" : "Unmute microphone"}
+            aria-label={audioEnabled ? "Mute microphone" : "Unmute microphone"}
+          >
+            {audioEnabled ? <IconMic /> : <IconMicOff />}
+          </button>
         </div>
       </div>
 

@@ -27,6 +27,39 @@ function serializeUser(r) {
   };
 }
 
+/** @param {import("firebase-admin").auth.UserRecord} r */
+function listUserPayload(r) {
+  const u = serializeUser(r);
+  const p = getPresenceForUid(r.uid);
+  return {
+    ...u,
+    presence: {
+      isOnline: p.isOnline,
+      name: p.name,
+      lastOnlineAt: p.lastOnlineAt,
+      sessionSince: p.sessionSince,
+      hasConnectedToApp: p.hasConnectedToApp,
+    },
+  };
+}
+
+/**
+ * @param {import("firebase-admin").auth.UserRecord} r
+ * @param {{ name?: string | null }} presence
+ * @param {string} qLower
+ */
+function userRecordMatchesQuery(r, presence, qLower) {
+  const hay = [
+    r.uid,
+    r.email || "",
+    r.displayName || "",
+    presence?.name || "",
+  ]
+    .join("\n")
+    .toLowerCase();
+  return hay.includes(qLower);
+}
+
 /**
  * Roles staff may assign when creating users (admin email or moderator).
  * GET /api/admin/role-options
@@ -90,6 +123,78 @@ router.post("/users", requireStaff, async (req, res) => {
 });
 
 /**
+ * Search users: exact email / UID when possible, otherwise paginated scan (substring on name, email, UID, in-app name).
+ * GET /api/admin/users/search?q=...
+ */
+router.get("/users/search", requireStaff, async (req, res) => {
+  const raw = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  if (!raw.length) {
+    return res.status(400).json({ error: "Missing query parameter `q`" });
+  }
+  if (raw.length > 200) {
+    return res.status(400).json({ error: "Search text is too long" });
+  }
+
+  const qLower = raw.toLowerCase();
+  const auth = getAdmin().auth();
+
+  try {
+    if (raw.includes("@")) {
+      const email = raw.toLowerCase();
+      try {
+        const r = await auth.getUserByEmail(email);
+        return res.json({ users: [listUserPayload(r)] });
+      } catch (e) {
+        const code = e && typeof e === "object" && "code" in e ? String(e.code) : "";
+        if (code !== "auth/user-not-found") {
+          console.error("admin search getUserByEmail", e);
+          return res.status(500).json({ error: e instanceof Error ? e.message : "Search failed" });
+        }
+      }
+    }
+
+    try {
+      const r = await auth.getUser(raw);
+      return res.json({ users: [listUserPayload(r)] });
+    } catch (e) {
+      const code = e && typeof e === "object" && "code" in e ? String(e.code) : "";
+      if (code !== "auth/user-not-found") {
+        console.error("admin search getUser", e);
+        return res.status(500).json({ error: e instanceof Error ? e.message : "Search failed" });
+      }
+    }
+
+    const matches = [];
+    const maxPages = 50;
+    const batchSize = 1000;
+    const maxMatches = 100;
+    let pageToken;
+
+    for (let page = 0; page < maxPages && matches.length < maxMatches; page += 1) {
+      const list = await auth.listUsers(batchSize, pageToken);
+      for (const r of list.users) {
+        const p = getPresenceForUid(r.uid);
+        if (userRecordMatchesQuery(r, p, qLower)) {
+          matches.push(listUserPayload(r));
+          if (matches.length >= maxMatches) {
+            break;
+          }
+        }
+      }
+      if (!list.pageToken) {
+        break;
+      }
+      pageToken = list.pageToken;
+    }
+
+    return res.json({ users: matches });
+  } catch (e) {
+    console.error("admin users search", e);
+    return res.status(500).json({ error: e instanceof Error ? e.message : "Search failed" });
+  }
+});
+
+/**
  * List users (paginated).
  * GET /api/admin/users?pageToken=...
  */
@@ -98,20 +203,7 @@ router.get("/users", requireStaff, async (req, res) => {
     const maxResults = Math.min(Number(req.query.maxResults) || 50, 1000);
     const pageToken = req.query.pageToken ? String(req.query.pageToken) : undefined;
     const list = await getAdmin().auth().listUsers(maxResults, pageToken);
-    const users = list.users.map((r) => {
-      const u = serializeUser(r);
-      const p = getPresenceForUid(r.uid);
-      return {
-        ...u,
-        presence: {
-          isOnline: p.isOnline,
-          name: p.name,
-          lastOnlineAt: p.lastOnlineAt,
-          sessionSince: p.sessionSince,
-          hasConnectedToApp: p.hasConnectedToApp,
-        },
-      };
-    });
+    const users = list.users.map((r) => listUserPayload(r));
     const onlineInApp = listOnlineUsers().length;
     return res.json({
       users,

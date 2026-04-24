@@ -91,6 +91,12 @@ export async function adminListUsers(pageToken) {
   return apiFetch(`/api/admin/users${q}`);
 }
 
+/** @param {string} q */
+export async function adminSearchUsers(q) {
+  const params = new URLSearchParams({ q });
+  return apiFetch(`/api/admin/users/search?${params}`);
+}
+
 /**
  * Admin or moderator. Creates user with given role (see server STAFF_CREATE_USER_ROLES).
  * @param {{ email: string, password: string, fullName: string, role: string }} body

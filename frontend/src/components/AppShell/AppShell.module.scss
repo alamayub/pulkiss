@@ -6,9 +6,12 @@
 }
 
 .main {
-  flex: 1;
+  flex: 1 1 auto;
   width: 100%;
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
@@ -47,6 +50,33 @@
   &:hover {
     color: var(--accent);
   }
+}
+
+.onlineBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: clamp(0.78rem, 2.2vw, 0.88rem);
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.2;
+
+  strong {
+    color: var(--success);
+  }
+}
+
+.navRoot {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .nav {
@@ -159,53 +189,78 @@
 @media (max-width: 720px) {
   .headerInner {
     display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-areas: "brand menuBtn";
+    grid-template-columns: 1fr auto auto;
     align-items: center;
-    gap: 0.5rem 0.65rem;
+    column-gap: 0.55rem;
+    row-gap: 0;
   }
 
   .brand {
-    grid-area: brand;
+    grid-column: 1;
+    grid-row: 1;
     justify-self: start;
+  }
+
+  .onlineBadge {
+    position: relative;
+    z-index: 102;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .header {
+    z-index: 102;
+  }
+
+  .navRoot {
+    flex: 0 0 0;
+    min-width: 0;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    min-height: 0;
+    height: 0;
+    overflow: visible;
+    display: block;
   }
 
   .menuToggle {
     display: inline-flex;
-    grid-area: menuBtn;
-    justify-self: end;
     position: relative;
-    z-index: 102;
+    z-index: 103;
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
   }
 
   .nav {
+    /* Full-viewport layer behind the sticky header; blur via ::before. */
     position: fixed;
-    z-index: 101;
-    left: 0;
-    right: 0;
-    top: calc(0.55rem + 2.75rem + 0.65rem + env(safe-area-inset-top, 0px));
-    bottom: 0;
+    z-index: 100;
+    inset: 0;
     width: 100%;
     max-width: none;
     min-width: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
     box-sizing: border-box;
     display: none;
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
-    align-items: center;
     align-content: flex-start;
-    gap: 0.45rem 0.65rem;
-    padding: 1.1rem max(var(--page-pad), env(safe-area-inset-left, 0px))
+    align-items: center;
+    gap: 0.45rem 0.55rem;
+    padding: calc(3.35rem + env(safe-area-inset-top, 0px)) max(var(--page-pad), env(safe-area-inset-left, 0px))
       max(1.25rem, calc(0.75rem + env(safe-area-inset-bottom, 0px)))
       max(var(--page-pad), env(safe-area-inset-right, 0px));
     margin: 0;
     border: none;
     border-radius: 0;
-    border-top: 1px solid var(--border);
-    background: color-mix(in srgb, var(--bg) 52%, transparent);
-    backdrop-filter: blur(22px);
-    -webkit-backdrop-filter: blur(22px);
+    background: transparent;
     box-shadow: none;
     overflow-x: hidden;
     overflow-y: auto;
@@ -220,6 +275,28 @@
       visibility 0.2s;
   }
 
+  .nav::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    /* Slight scrim; most of the “empty” area reads as blurred page behind. */
+    background: color-mix(in srgb, var(--bg) 30%, transparent);
+    backdrop-filter: blur(20px) saturate(1.15);
+    -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  }
+
+  .nav > .navLink,
+  .nav > .navSignOut {
+    position: relative;
+    z-index: 1;
+    flex: 0 1 auto;
+    max-width: min(13rem, 100%);
+    width: auto;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
   .nav.navOpen {
     display: flex;
     visibility: visible;
@@ -231,23 +308,40 @@
   .navLink {
     white-space: normal;
     padding: 0.6rem 0.75rem;
-    border-radius: 8px;
+    border-radius: 10px;
     text-align: center;
-    width: auto;
-    max-width: 100%;
     box-sizing: border-box;
+    /* Darker than the frosted background so items read as a distinct column. */
+    background: color-mix(in srgb, var(--surface) 88%, var(--text) 8%);
+    border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+
+    &:hover {
+      background: color-mix(in srgb, var(--surface) 82%, var(--accent) 6%);
+    }
+  }
+
+  .navLink.navLinkActive {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--nav-active-bg) 50%, var(--surface) 45%);
+    border-color: color-mix(in srgb, var(--accent) 38%, var(--border) 50%);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent),
+      0 2px 12px rgba(0, 0, 0, 0.1);
   }
 
   .navSignOut {
-    flex-basis: 100%;
-    width: 100%;
-    max-width: 20rem;
-    margin: 0.35rem auto 0;
-    padding: 0.75rem 0.75rem 0;
-    border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    margin: 0;
+    padding: 0.6rem 0.75rem;
     text-align: center;
-    border-radius: 8px;
+    border-radius: 10px;
     box-sizing: border-box;
+    border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+    background: color-mix(in srgb, var(--surface) 80%, var(--text) 10%);
+
+    &:hover {
+      background: color-mix(in srgb, var(--surface) 70%, var(--danger) 12%);
+    }
   }
 }
 
@@ -255,18 +349,47 @@
   .headerInner {
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem 0.65rem;
+  }
+
+  .brand {
+    order: 0;
+  }
+
+  .navRoot {
+    order: 1;
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    grid-column: unset;
+    grid-row: unset;
+    overflow: visible;
+  }
+
+  .onlineBadge {
+    order: 2;
+    position: static;
+    z-index: auto;
+  }
+
+  .menuToggle {
+    order: 3;
+    display: none !important;
+    z-index: auto;
   }
 
   .brand,
   .nav,
   .menuToggle {
     grid-area: unset;
-  }
-
-  .menuToggle {
-    display: none !important;
-    z-index: auto;
   }
 
   .nav {

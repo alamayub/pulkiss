@@ -7,60 +7,61 @@ export function AboutPage() {
   return (
     <div className={styles.wrap}>
       <article className={styles.article}>
-        <h1>About Pulkiss</h1>
-        <p className={styles.meta}>
-          Pulkiss connects people for casual one-to-one video conversations and optional text chat, with separate
-          in-app groups for longer-lived communities.
+        <p>
+          Pulkiss is a small web app for spontaneous video introductions and lightweight group spaces. You can drop into
+          a random one-to-one call when you feel social, or keep a group for chat and shared YouTube viewing.
         </p>
 
-        <h2>What you can do here</h2>
-        <ul>
-          <li>
-            <strong>Random matching</strong> — Join a queue to be paired with another signed-in user. When a match is
-            found, your browsers establish a direct <strong>WebRTC</strong> audio/video link when possible, with
-            signaling and in-call chat relayed through this app&apos;s server.
-          </li>
-          <li>
-            <strong>Groups</strong> — Create or join groups (where enabled) for shared text chat and a synchronized
-            YouTube &quot;watch together&quot; experience. Group data for this deployment lives in the server process
-            memory unless your operator configures external storage.
-          </li>
-          <li>
-            <strong>Accounts</strong> — Sign in with email and password (including registration through our API) or
-            with Google, handled by <strong>Firebase Authentication</strong>. The server verifies identity using
-            Firebase-issued ID tokens; it does not store your password when you use Google.
-          </li>
-        </ul>
-
-        <h2>How media and chat flow</h2>
+        <h2>Random match</h2>
         <p>
-          Video and audio between matched users are designed to go <strong>peer-to-peer</strong> when your
-          network and browser allow it. ICE (STUN/TURN) servers may be configured by whoever runs the API so that
-          connections work across more networks. In-call text messages during a match are sent through the server for
-          that session only and are not kept as a permanent history after the match ends.
+          Sign in, tap Start, and you enter a queue. When someone else is waiting, the app pairs you and helps your
+          browsers negotiate a call. Video and audio usually travel <strong>directly between devices</strong> (WebRTC)
+          when your network allows; the server carries signaling, presence, and the short text chat that appears during
+          the match. That chat is for the live session only and is not stored as a long-term log after you disconnect or
+          skip.
         </p>
 
-        <h2>Safety and expectations</h2>
+        <h2>Groups</h2>
         <p>
-          Random video chat can expose you to unknown people. You should treat interactions like any other open
-          internet conversation: do not share secrets, financial data, or anything you would regret being recorded.
-          You can leave a match or stop searching at any time. If your deployment includes moderation or reporting,
-          use the channels your operator provides.
+          Groups give you a place to stay in touch beyond a single call: text chat and a synchronized YouTube player so
+          you can watch together. What is persisted and where depends on how this instance is configured—many setups keep
+          group state in server memory unless an operator plugs in external storage.
         </p>
 
-        <h2>Open source &amp; stack</h2>
+        <h2>Sign-in</h2>
         <p>
-          This project is built with a <strong>React</strong> front end, a <strong>Node.js</strong> server using{" "}
-          <strong>Express</strong> and <strong>Socket.io</strong>, and <strong>Firebase</strong> for authentication and
-          (where configured) admin user management. See the repository README for how to run and configure your own
-          instance.
+          Accounts use <strong>Firebase Authentication</strong>—for example Google or email/password where enabled.
+          The backend checks Firebase ID tokens; it never sees your Google password. Registration flows may go through
+          this app&apos;s API according to how your host has set things up.
         </p>
 
-        <h2>Contact</h2>
+        <h2>Networks and reliability</h2>
         <p>
-          For questions about a <strong>specific deployment</strong> (for example the site you are using right now),
-          contact the person or organization that operates that server. This generic &quot;About&quot; page does not
-          list a global support inbox unless your operator adds one to their fork or site.
+          NATs, firewalls, and corporate Wi-Fi can block pure peer-to-peer media. Operators can supply STUN/TURN (ICE)
+          servers so more calls connect. If video fails, text chat may still work through the same socket session.
+        </p>
+
+        <h2>Staying safe</h2>
+        <p>
+          Random video is real-time and unpredictable. Treat strangers like the open web: avoid sharing passwords,
+          banking details, addresses, or anything you would not want repeated or recorded. You can stop searching, skip
+          a match, or sign out at any time. Reporting and moderation depend on whoever runs this deployment—use their
+          channels if they offer them.
+        </p>
+
+        <h2>Built with</h2>
+        <p>
+          The UI is <strong>React</strong>; the API and realtime layer are <strong>Node.js</strong> with{" "}
+          <strong>Express</strong> and <strong>Socket.io</strong>. Auth and optional admin tooling lean on{" "}
+          <strong>Firebase</strong>. Clone or fork the repo and read the README to run your own copy and tune
+          environment variables.
+        </p>
+
+        <h2>Questions about this site</h2>
+        <p>
+          This page describes the product in general. For downtime, abuse, privacy on a particular URL, or account
+          issues on that host, reach out to the team that operates <em>this</em> deployment—they are the ones who can
+          change policy, moderation, and configuration.
         </p>
       </article>
     </div>

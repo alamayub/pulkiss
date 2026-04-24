@@ -7,113 +7,111 @@ export function PrivacyPolicyPage() {
   return (
     <div className={styles.wrap}>
       <article className={styles.article}>
-        <h1>Privacy policy</h1>
-        <p className={styles.meta}>
-          <strong>Last updated:</strong> April 23, 2026. This policy describes how the Pulkiss web application
-          and its backend typically handle information. Whoever <strong>hosts</strong> a particular deployment is the
-          data controller for that instance; if you use someone else&apos;s server, read their notices too.
+        <p>
+          <strong>Last updated:</strong> April 24, 2026. This page explains how information is usually handled when you
+          use the Pulkiss web app and its API. The organization or person that <strong>hosts</strong> the instance you
+          connect to acts as the data controller for that site; Firebase and other vendors process data under their own
+          terms as well. If you did not deploy this software yourself, read any extra notices your host publishes.
         </p>
 
-        <h2>1. Who we are</h2>
+        <h2>Who this refers to</h2>
         <p>
-          &quot;We&quot; in this document means the operator of the Pulkiss instance you are using—the entity
-          that controls the web app URL and API you connect to. Authentication is processed by <strong>Google Firebase</strong>{" "}
-          on behalf of that operator according to Firebase&apos;s terms and privacy documentation.
+          &quot;We&quot; means whoever operates the URL and backend you are using. Sign-in is handled by{" "}
+          <strong>Google Firebase Authentication</strong> under Google&apos;s agreements; our server verifies Firebase ID
+          tokens to know your user ID and profile fields it needs for features like groups or admin screens.
         </p>
 
-        <h2>2. Information we collect</h2>
-        <p>Depending on features you use, the following categories may apply:</p>
-        <ul>
-          <li>
-            <strong>Account and profile data</strong> — When you register or sign in, Firebase may process your email
-            address, display name, authentication provider identifiers, and related security metadata. Our API may read
-            your Firebase ID token to identify your user ID and display name for in-app features (for example groups or
-            admin tools).
-          </li>
-          <li>
-            <strong>Usage and connection data</strong> — The server may log technical events (such as errors,
-            connection counts, or matchmaking activity) as configured by the operator. Socket connections may be used
-            to implement presence counts and real-time features.
-          </li>
-          <li>
-            <strong>Random match sessions</strong> — Peer-to-peer video and audio streams are not intended to be
-            stored on our server as media recordings. Text chat during a random match is relayed through the server for
-            delivery and is not designed to be retained after the session ends, subject to logging or backups the
-            operator enables.
-          </li>
-          <li>
-            <strong>Groups</strong> — Group names, messages, membership, join requests, and related activity may be
-            held in server memory for this process. A standard deployment does not write that data to a durable
-            database; restarting the server typically clears it unless your operator has changed the architecture.
-          </li>
-        </ul>
-
-        <h2>3. How we use information</h2>
-        <ul>
-          <li>To provide sign-in, matching, chat, groups, and notifications you request.</li>
-          <li>To secure the service, prevent abuse, and debug operational issues.</li>
-          <li>To comply with law where the operator is legally required to do so.</li>
-        </ul>
-
-        <h2>4. Legal bases (EEA/UK users)</h2>
+        <h2>Information that may be collected</h2>
         <p>
-          Where GDPR-style rules apply, processing is generally based on <strong>contract</strong> (providing the
-          service you asked for), <strong>legitimate interests</strong> (security and improvement, balanced against your
-          rights), or <strong>consent</strong> where required (for example certain cookies or marketing, if offered).
-          Your operator should refine this section for their role and region.
+          <strong>Account and profile.</strong> Email, display name, provider IDs, and related security metadata flow
+          through Firebase when you register or sign in. Our application reads what Firebase exposes in the token and
+          profile APIs to personalize the product and enforce access rules.
+        </p>
+        <p>
+          <strong>Technical and usage data.</strong> The server may record connection events, errors, queue and match
+          activity, presence counts, and similar telemetry depending on configuration. Socket.io traffic carries realtime
+          messages and state between your browser and the host&apos;s infrastructure.
+        </p>
+        <p>
+          <strong>Random match calls.</strong> Video and audio are meant to go peer-to-peer when WebRTC succeeds; we do
+          not design the core app to record those media streams on the server. In-call text is relayed for live delivery
+          and is not intended to be kept as a permanent archive after the session ends—subject to any logging or backups
+          the operator enables.
+        </p>
+        <p>
+          <strong>Groups.</strong> Names, messages, membership, join requests, and watch-together state may live in
+          process memory on a typical single-node deployment. A restart often clears that data unless the host has wired
+          in durable storage.
         </p>
 
-        <h2>5. Sharing and subprocessors</h2>
+        <h2>Why we process it</h2>
         <p>
-          <strong>Google Firebase</strong> processes authentication data under Google&apos;s policies.{" "}
-          <strong>WebRTC</strong> may involve STUN/TURN providers configured by the operator. We do not sell your
-          personal information as part of the open-source app design; a commercial host must disclose their own sharing
-          practices.
+          To run authentication, matching, chat, groups, and notifications you ask for; to protect the service and fix
+          outages; and to meet legal obligations where they apply to the operator.
         </p>
 
-        <h2>6. Retention</h2>
+        <h2>Legal bases (EEA and UK)</h2>
         <p>
-          Firebase retains account data according to Firebase/Google settings and your actions (for example deleting your
-          Firebase account). In-app group and match state in a default single-server deployment are volatile and may
-          disappear on restart. Server or edge logs may be retained for a period chosen by the operator.
+          Where GDPR-style laws apply, processing is commonly grounded in <strong>contract</strong> (delivering the
+          service), <strong>legitimate interests</strong> (security and reliability, weighed against your rights), or{" "}
+          <strong>consent</strong> when the law requires it—for example optional analytics or marketing if the host adds
+          them. The controller for your instance should align this wording with their legal advice and role.
         </p>
 
-        <h2>7. Your choices and rights</h2>
-        <ul>
-          <li>You may be able to access, correct, or delete account data through Firebase or flows your operator exposes.</li>
-          <li>You can disconnect from matching, leave groups, or sign out at any time.</li>
-          <li>Depending on your region, you may have rights to object, restrict, port, or complain to a supervisory authority.</li>
-        </ul>
-
-        <h2>8. Children</h2>
+        <h2>Sharing and subprocessors</h2>
         <p>
-          This service is <strong>not directed at children under 13</strong> (or the minimum age required in your
-          country). The operator should not collect personal information from children knowingly. If you believe a child
-          has provided data, contact the host so they can remove it.
+          <strong>Google</strong> processes authentication data as described in Firebase and Google privacy documents.{" "}
+          <strong>ICE providers</strong> (STUN/TURN) configured for WebRTC may see metadata needed to set up calls.
+          The open-source project is not built to sell personal data; a commercial operator must still disclose their own
+          recipients and contracts.
         </p>
 
-        <h2>9. International transfers</h2>
+        <h2>How long things are kept</h2>
         <p>
-          Firebase and other providers may process data in the United States and other countries. Standard contractual
-          clauses or other mechanisms may apply depending on provider and region.
+          Firebase retention follows Google&apos;s settings and whether you delete your account. Volatile in-app state
+          (matches, group rooms) may vanish when the server restarts unless persistence is added. Log files and backups,
+          if any, are kept for whatever period the host chooses.
         </p>
 
-        <h2>10. Security</h2>
+        <h2>Your choices</h2>
         <p>
-          We use industry-standard transport (HTTPS, WSS) and token verification for API and socket access. No method of
-          transmission over the internet is 100% secure; use the service with that in mind.
+          You can leave matching, leave groups, or sign out whenever you like. Access, correction, or deletion of
+          account-level data may be available through Firebase, your Google account, or tools the operator provides.
+          Depending on where you live, you may also have rights to object, restrict processing, data portability, or to
+          complain to a regulator.
         </p>
 
-        <h2>11. Changes</h2>
+        <h2>Children</h2>
         <p>
-          The operator may update this policy. Material changes should be reflected by updating this page and the
-          &quot;Last updated&quot; date at the top.
+          Pulkiss is <strong>not aimed at children under 13</strong> (or the higher minimum age in your country). Hosts
+          should not knowingly collect personal information from children. If you think a minor&apos;s data was
+          collected in error, contact the operator of the site you used.
         </p>
 
-        <h2>12. Contact</h2>
+        <h2>Cross-border processing</h2>
         <p>
-          For privacy requests about the <strong>instance you are using</strong>, contact the deployment operator. If
-          you are the operator, publish a contact method (email or form) suitable for your users and jurisdiction.
+          Firebase and other infrastructure may run in the United States and elsewhere. Providers may rely on standard
+          contractual clauses, adequacy decisions, or other transfer tools depending on the service and region.
+        </p>
+
+        <h2>Security</h2>
+        <p>
+          We rely on HTTPS and authenticated sockets where the stack is configured that way. No online service can
+          promise perfect security; use strong passwords, keep devices updated, and avoid sharing sensitive material in
+          random calls.
+        </p>
+
+        <h2>Changes to this page</h2>
+        <p>
+          Operators may revise this policy. When they do, they should update the text here and bump the &quot;Last
+          updated&quot; line at the top so visitors can see what changed.
+        </p>
+
+        <h2>Who to contact</h2>
+        <p>
+          For access, deletion, or privacy questions about <strong>this deployment</strong>, reach the team that runs
+          the server behind the URL you are visiting. If you operate an instance yourself, publish a reachable contact
+          (email or form) that matches your jurisdiction&apos;s expectations.
         </p>
       </article>
     </div>

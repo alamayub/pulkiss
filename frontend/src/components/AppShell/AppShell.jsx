@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { signOut } from "firebase/auth";
 import { getFirebaseAuth } from "../../lib/firebase";
 import { useSessionSocket } from "../../hooks/useSessionSocket";
 import { canAccessUserManagement } from "../../lib/admin";
 import { setTheme, THEME_STORAGE_KEY } from "../../lib/theme";
+import { setOnlineCount } from "../../app/roomSlice";
+import { fetchPresenceCount } from "../../lib/api";
 import styles from "./AppShell.module.scss";
 
 const NAV_MEDIA = "(min-width: 721px)";
@@ -68,7 +70,9 @@ function MenuIcon({ open }) {
  * Global chrome: sticky header with primary nav and a footer. Renders child routes via `<Outlet />`.
  */
 export function AppShell() {
+  const dispatch = useDispatch();
   const { user, ready } = useSelector((s) => s.auth);
+  const online = useSelector((s) => s.room.onlineCount);
   const location = useLocation();
   const { socket } = useSessionSocket(user?.uid ?? null);
   const [navOpen, setNavOpen] = useState(false);
@@ -143,6 +147,30 @@ export function AppShell() {
     };
   }, [navOpen]);
 
+  useEffect(() => {
+    void fetchPresenceCount().then((c) => dispatch(setOnlineCount(c)));
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!socket) {
+      return undefined;
+    }
+    const onCount = (n) => {
+      if (typeof n === "number") {
+        dispatch(setOnlineCount(n));
+      }
+    };
+    const onConnect = () => {
+      void fetchPresenceCount().then((c) => dispatch(setOnlineCount(c)));
+    };
+    socket.on("connect", onConnect);
+    socket.on("presence:count", onCount);
+    return () => {
+      socket.off("connect", onConnect);
+      socket.off("presence:count", onCount);
+    };
+  }, [socket, dispatch]);
+
   const onSignOut = async () => {
     try {
       if (socket?.connected) {
@@ -162,51 +190,9 @@ export function AppShell() {
           <Link to="/" className={styles.brand} onClick={closeNav}>
             Pulkiss
           </Link>
-          <nav
-            id="main-navigation"
-            className={`${styles.nav} ${navOpen ? styles.navOpen : ""}`}
-            aria-label="Main"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                closeNav();
-              }
-            }}
-          >
-            <NavLink to="/" className={navClass} end onClick={closeNav}>
-              Home
-            </NavLink>
-            <NavLink to="/about" className={navClass} onClick={closeNav}>
-              About
-            </NavLink>
-            <NavLink to="/privacy" className={navClass} onClick={closeNav}>
-              Privacy
-            </NavLink>
-            {ready && user ? (
-              <>
-                <NavLink to="/groups" className={navClass} onClick={closeNav}>
-                  Groups
-                </NavLink>
-                <NavLink to="/profile" className={navClass} onClick={closeNav}>
-                  Profile
-                </NavLink>
-                {canAccessUserManagement(user) ? (
-                  <NavLink to="/admin" className={navClass} onClick={closeNav}>
-                    User admin
-                  </NavLink>
-                ) : null}
-                <button
-                  type="button"
-                  className={styles.navSignOut}
-                  onClick={() => {
-                    closeNav();
-                    void onSignOut();
-                  }}
-                >
-                  Sign out
-                </button>
-              </>
-            ) : null}
-          </nav>
+          <div className={styles.onlineBadge} title="Users currently connected to this app">
+            <span>Online</span> <strong>{online}</strong>
+          </div>
           <button
             type="button"
             className={styles.menuToggle}
@@ -217,6 +203,44 @@ export function AppShell() {
           >
             <MenuIcon open={navOpen} />
           </button>
+          <div className={styles.navRoot}>
+            <nav
+              id="main-navigation"
+              className={`${styles.nav} ${navOpen ? styles.navOpen : ""}`}
+              aria-label="Main"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  closeNav();
+                }
+              }}
+            >
+              {ready && user ? (
+                <>
+                  <NavLink to="/groups" className={navClass} onClick={closeNav}>
+                    Groups
+                  </NavLink>
+                  <NavLink to="/profile" className={navClass} onClick={closeNav}>
+                    Profile
+                  </NavLink>
+                  {canAccessUserManagement(user) ? (
+                    <NavLink to="/admin" className={navClass} onClick={closeNav}>
+                      User admin
+                    </NavLink>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={styles.navSignOut}
+                    onClick={() => {
+                      closeNav();
+                      void onSignOut();
+                    }}
+                  >
+                    Sign out
+                  </button>
+                </>
+              ) : null}
+            </nav>
+          </div>
         </div>
       </header>
 
@@ -227,7 +251,6 @@ export function AppShell() {
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
           <div className={styles.footerLinks}>
-            <Link to="/">Home</Link>
             <Link to="/about">About</Link>
             <Link to="/privacy">Privacy policy</Link>
             {user ? <Link to="/groups">Groups</Link> : null}

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { signOut } from "firebase/auth";
 import { getFirebaseAuth } from "../../lib/firebase";
 import {
   adminListUsers,
+  adminSearchUsers,
   adminUpdateUser,
   adminDeleteUser,
   adminCreateUser,
@@ -25,6 +26,14 @@ function formatWhen(iso) {
   } catch {
     return String(iso);
   }
+}
+
+/** @param {{ uid: string, email?: string | null, displayName?: string | null, presence?: { name?: string | null } }} u @param {string} qLower */
+function userMatchesSearch(u, qLower) {
+  const parts = [u.uid, u.email || "", u.displayName || "", u.presence?.name || ""].map((s) =>
+    String(s).toLowerCase()
+  );
+  return parts.some((p) => p.includes(qLower));
 }
 
 /**
@@ -52,6 +61,14 @@ export function AdminUsersPage({ user, isFullAdmin }) {
     email: "",
     disabled: false,
   });
+  /** Which user row has the actions menu open (full admin only). */
+  const [actionsMenuUid, setActionsMenuUid] = useState(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [apiSearchUsers, setApiSearchUsers] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
 
   const load = useCallback(
     async (pageToken) => {
@@ -76,6 +93,77 @@ export function AdminUsersPage({ user, isFullAdmin }) {
   useEffect(() => {
     void load(undefined);
   }, [load]);
+
+  useEffect(() => {
+    const trimmed = userSearch.trim();
+    if (!trimmed) {
+      setDebouncedSearch("");
+      return undefined;
+    }
+    const t = window.setTimeout(() => {
+      setDebouncedSearch(trimmed);
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [userSearch]);
+
+  const localSearchMatches = useMemo(() => {
+    if (!debouncedSearch) {
+      return null;
+    }
+    const qLower = debouncedSearch.toLowerCase();
+    return users.filter((u) => userMatchesSearch(u, qLower));
+  }, [users, debouncedSearch]);
+
+  const displayedUsers = useMemo(() => {
+    if (!debouncedSearch) {
+      return users;
+    }
+    if (localSearchMatches && localSearchMatches.length > 0) {
+      return localSearchMatches;
+    }
+    return apiSearchUsers;
+  }, [users, debouncedSearch, localSearchMatches, apiSearchUsers]);
+
+  useEffect(() => {
+    if (!debouncedSearch) {
+      setApiSearchUsers([]);
+      setSearchLoading(false);
+      setSearchError("");
+      return undefined;
+    }
+    const qLower = debouncedSearch.toLowerCase();
+    const local = users.filter((u) => userMatchesSearch(u, qLower));
+    if (local.length > 0) {
+      setApiSearchUsers([]);
+      setSearchLoading(false);
+      setSearchError("");
+      return undefined;
+    }
+    let cancelled = false;
+    setSearchLoading(true);
+    setSearchError("");
+    setApiSearchUsers([]);
+    void adminSearchUsers(debouncedSearch)
+      .then((res) => {
+        if (!cancelled) {
+          setApiSearchUsers(Array.isArray(res.users) ? res.users : []);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setApiSearchUsers([]);
+          setSearchError(e.data?.error || e.message || "Search failed");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSearchLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch, users]);
 
   useEffect(() => {
     void adminFetchCreateUserRoleOptions()
@@ -105,6 +193,7 @@ export function AdminUsersPage({ user, isFullAdmin }) {
         role: createRoles.includes(f.role) ? f.role : createRoles[0] || "user",
       }));
       setCreateSuccess("User created. They can sign in with this email and password.");
+      setCreateModalOpen(false);
       void load(undefined);
     } catch (err) {
       setError(err.data?.error || err.message || "Create user failed");
@@ -114,6 +203,8 @@ export function AdminUsersPage({ user, isFullAdmin }) {
   };
 
   const openEdit = (u) => {
+    setActionsMenuUid(null);
+    setCreateModalOpen(false);
     setEditing(u);
     setForm({
       displayName: u.displayName || "",
@@ -125,6 +216,43 @@ export function AdminUsersPage({ user, isFullAdmin }) {
   const closeEdit = () => {
     setEditing(null);
   };
+
+  useEffect(() => {
+    if (!actionsMenuUid) {
+      return undefined;
+    }
+    const close = () => setActionsMenuUid(null);
+    const onDocMouseDown = (e) => {
+      const el = e.target;
+      if (el instanceof Node && !document.querySelector(`[data-action-menu="${actionsMenuUid}"]`)?.contains(el)) {
+        close();
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        close();
+      }
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [actionsMenuUid]);
+
+  useEffect(() => {
+    if (!createModalOpen) {
+      return undefined;
+    }
+    const onKey = (e) => {
+      if (e.key === "Escape" && !createBusy) {
+        setCreateModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [createModalOpen, createBusy]);
 
   const saveEdit = async (e) => {
     e.preventDefault();
@@ -204,6 +332,17 @@ export function AdminUsersPage({ user, isFullAdmin }) {
           >
             Refresh list
           </button>
+          <button
+            type="button"
+            className={styles.primary}
+            onClick={() => {
+              setError("");
+              setEditing(null);
+              setCreateModalOpen(true);
+            }}
+          >
+            Create user
+          </button>
           <button type="button" className={styles.secondary} onClick={() => void onLogout()}>
             Log out
           </button>
@@ -213,70 +352,52 @@ export function AdminUsersPage({ user, isFullAdmin }) {
       {error && <p className={styles.errorBanner}>{error}</p>}
       {createSuccess && <p className={styles.successBanner}>{createSuccess}</p>}
 
-      <section className={styles.createPanel}>
-        <h2 className={styles.createTitle}>Create user</h2>
-        <p className={styles.muted}>Assign role from the server allowlist (default: user, moderator).</p>
-        <form className={styles.createForm} onSubmit={submitCreateUser}>
-          <div className={styles.createGrid}>
-            <div>
-              <label className={styles.fieldLabel}>Full name</label>
-              <input
-                className={styles.fieldInput}
-                value={createForm.fullName}
-                onChange={(e) => setCreateForm((f) => ({ ...f, fullName: e.target.value }))}
-                required
-                maxLength={128}
-                autoComplete="name"
-              />
-            </div>
-            <div>
-              <label className={styles.fieldLabel}>Email</label>
-              <input
-                className={styles.fieldInput}
-                type="email"
-                value={createForm.email}
-                onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
-                required
-                autoComplete="off"
-              />
-            </div>
-            <div>
-              <label className={styles.fieldLabel}>Temporary password</label>
-              <input
-                className={styles.fieldInput}
-                type="password"
-                value={createForm.password}
-                onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
-                minLength={8}
-                required
-                autoComplete="new-password"
-              />
-            </div>
-            <div>
-              <label className={styles.fieldLabel}>Role</label>
-              <select
-                className={styles.fieldInput}
-                value={createForm.role}
-                onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}
-              >
-                {createRoles.map((r) => (
-                  <option key={r} value={r}>
-                    {roleLabel(r)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <button type="submit" className={styles.primary} disabled={createBusy}>
-            {createBusy ? "Creating…" : "Create user"}
-          </button>
-        </form>
-      </section>
-
       <p className={styles.statsBar}>
         Active in this app right now: <strong>{stats.onlineInApp}</strong> (unique accounts with an open connection to
         this server)
       </p>
+
+      <div className={styles.tableToolbar}>
+        <label className={styles.searchLabel} htmlFor="admin-user-search">
+          Search users
+        </label>
+        <div className={styles.searchRow}>
+          <input
+            id="admin-user-search"
+            type="search"
+            className={styles.searchInput}
+            placeholder="Name, email, or UID…"
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          {userSearch ? (
+            <button type="button" className={styles.secondary} onClick={() => setUserSearch("")}>
+              Clear
+            </button>
+          ) : null}
+        </div>
+        {debouncedSearch ? (
+          <p className={styles.searchMeta} role="status">
+            {searchLoading ? (
+              "Searching…"
+            ) : localSearchMatches && localSearchMatches.length > 0 ? (
+              <>
+                {localSearchMatches.length} match{localSearchMatches.length === 1 ? "" : "es"} in loaded pages
+              </>
+            ) : (
+              <>
+                {apiSearchUsers.length} result{apiSearchUsers.length === 1 ? "" : "s"} from server
+                {apiSearchUsers.length === 0 && !searchError
+                  ? " (try load more pages first, or use full email / UID)"
+                  : null}
+              </>
+            )}
+          </p>
+        ) : null}
+        {searchError ? <p className={styles.searchError}>{searchError}</p> : null}
+      </div>
 
       <div className={styles.tableWrap}>
         {loading && users.length === 0 ? (
@@ -292,11 +413,22 @@ export function AdminUsersPage({ user, isFullAdmin }) {
                 <th>In-app name</th>
                 <th>Last in app</th>
                 <th>Firebase last sign-in</th>
-                <th />
+                <th className={styles.thActions}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => {
+              {displayedUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className={styles.emptySearch}>
+                    {debouncedSearch
+                      ? searchLoading
+                        ? "Searching…"
+                        : "No users match this search."
+                      : "No users in this list."}
+                  </td>
+                </tr>
+              ) : (
+                displayedUsers.map((u) => {
                 const p = u.presence || {};
                 let lastInApp = "—";
                 if (p.isOnline && p.sessionSince) {
@@ -327,24 +459,72 @@ export function AdminUsersPage({ user, isFullAdmin }) {
                   <td>{u.lastSignInTime || "—"}</td>
                   <td className={styles.actions}>
                     {isFullAdmin ? (
-                      <>
-                        <button type="button" className={styles.small} onClick={() => openEdit(u)}>
-                          Edit
+                      <div className={styles.actionMenuWrap} data-action-menu={u.uid}>
+                        <button
+                          type="button"
+                          className={styles.actionMenuTrigger}
+                          aria-expanded={actionsMenuUid === u.uid}
+                          aria-haspopup="menu"
+                          {...(actionsMenuUid === u.uid ? { "aria-controls": `user-actions-${u.uid}` } : {})}
+                          id={`user-actions-btn-${u.uid}`}
+                          onClick={() => setActionsMenuUid((open) => (open === u.uid ? null : u.uid))}
+                        >
+                          <span className={styles.srOnly}>User actions</span>
+                          <svg className={styles.kebabIcon} viewBox="0 0 24 24" aria-hidden>
+                            <circle cx="12" cy="5" r="2" fill="currentColor" />
+                            <circle cx="12" cy="12" r="2" fill="currentColor" />
+                            <circle cx="12" cy="19" r="2" fill="currentColor" />
+                          </svg>
                         </button>
-                        <button type="button" className={styles.small} onClick={() => void toggleDisabled(u)}>
-                          {u.disabled ? "Enable" : "Disable"}
-                        </button>
-                        <button type="button" className={`${styles.small} ${styles.danger}`} onClick={() => void remove(u)}>
-                          Delete
-                        </button>
-                      </>
+                        {actionsMenuUid === u.uid ? (
+                          <ul
+                            id={`user-actions-${u.uid}`}
+                            className={styles.actionMenu}
+                            role="menu"
+                            aria-labelledby={`user-actions-btn-${u.uid}`}
+                          >
+                            <li role="none">
+                              <button type="button" className={styles.actionMenuItem} role="menuitem" onClick={() => openEdit(u)}>
+                                Edit…
+                              </button>
+                            </li>
+                            <li role="none">
+                              <button
+                                type="button"
+                                className={styles.actionMenuItem}
+                                role="menuitem"
+                                onClick={() => {
+                                  setActionsMenuUid(null);
+                                  void toggleDisabled(u);
+                                }}
+                              >
+                                {u.disabled ? "Enable account" : "Disable account"}
+                              </button>
+                            </li>
+                            <li role="none">
+                              <button
+                                type="button"
+                                className={`${styles.actionMenuItem} ${styles.actionMenuItemDanger}`}
+                                role="menuitem"
+                                onClick={() => {
+                                  setActionsMenuUid(null);
+                                  void remove(u);
+                                }}
+                              >
+                                Delete…
+                              </button>
+                            </li>
+                          </ul>
+                        ) : null}
+                      </div>
                     ) : (
                       <span className={styles.muted}>—</span>
                     )}
                   </td>
                 </tr>
                 );
-              })}
+              })
+              )}
             </tbody>
           </table>
         )}
@@ -359,6 +539,106 @@ export function AdminUsersPage({ user, isFullAdmin }) {
         >
           {loading ? "Loading…" : "Load more"}
         </button>
+      )}
+
+      {createModalOpen && (
+        <div
+          className={styles.modalBackdrop}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-user-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !createBusy) {
+              setCreateModalOpen(false);
+            }
+          }}
+        >
+          <form
+            className={`${styles.modal} ${styles.createModal}`}
+            onSubmit={submitCreateUser}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="create-user-title">Create user</h2>
+            <p className={styles.muted}>Assign role from the server allowlist (default: user, moderator).</p>
+            <div className={styles.createForm}>
+              <div className={styles.createGrid}>
+                <div>
+                  <label className={styles.fieldLabel} htmlFor="create-full-name">
+                    Full name
+                  </label>
+                  <input
+                    id="create-full-name"
+                    className={styles.fieldInput}
+                    value={createForm.fullName}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, fullName: e.target.value }))}
+                    required
+                    maxLength={128}
+                    autoComplete="name"
+                  />
+                </div>
+                <div>
+                  <label className={styles.fieldLabel} htmlFor="create-email">
+                    Email
+                  </label>
+                  <input
+                    id="create-email"
+                    className={styles.fieldInput}
+                    type="email"
+                    value={createForm.email}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                    required
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label className={styles.fieldLabel} htmlFor="create-password">
+                    Temporary password
+                  </label>
+                  <input
+                    id="create-password"
+                    className={styles.fieldInput}
+                    type="password"
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                    minLength={8}
+                    required
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div>
+                  <label className={styles.fieldLabel} htmlFor="create-role">
+                    Role
+                  </label>
+                  <select
+                    id="create-role"
+                    className={styles.fieldInput}
+                    value={createForm.role}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}
+                  >
+                    {createRoles.map((r) => (
+                      <option key={r} value={r}>
+                        {roleLabel(r)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className={styles.row}>
+              <button type="submit" className={styles.primary} disabled={createBusy}>
+                {createBusy ? "Creating…" : "Create user"}
+              </button>
+              <button
+                type="button"
+                className={styles.secondary}
+                disabled={createBusy}
+                onClick={() => setCreateModalOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {editing && (
