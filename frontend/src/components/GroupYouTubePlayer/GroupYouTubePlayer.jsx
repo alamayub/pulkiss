@@ -87,6 +87,15 @@ function IconSkipNext() {
   );
 }
 
+function IconTrash() {
+  return (
+    <svg className={styles.adminIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
 /**
  * @param {{ groupId: string, socket: import("socket.io-client").Socket | null, isAdmin: boolean, initialPlayer: object | null, user: { uid: string } | null, layout?: "default" | "dashboard" }} props
  */
@@ -102,7 +111,6 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
   const [durationSec, setDurationSec] = useState(0);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [scrubSec, setScrubSec] = useState(0);
-  const [videoTitle, setVideoTitle] = useState("");
 
   const playerRef = useRef(null);
   const domIdRef = useRef(uid());
@@ -122,35 +130,6 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
     currentQueueItem != null
       ? `Added by ${currentQueueItem.addedByName || currentQueueItem.addedByUid} · ${formatRelativeIso(currentQueueItem.addedAt)}`
       : null;
-
-  useEffect(() => {
-    if (!isDashboard || !cur?.videoId) {
-      setVideoTitle("");
-      return undefined;
-    }
-    let cancelled = false;
-    const vid = cur.videoId;
-    (async () => {
-      try {
-        const u = `https://www.youtube.com/watch?v=${encodeURIComponent(vid)}`;
-        const r = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(u)}&format=json`);
-        if (!r.ok) {
-          throw new Error("oembed");
-        }
-        const j = await r.json();
-        if (!cancelled && typeof j?.title === "string") {
-          setVideoTitle(j.title);
-        }
-      } catch {
-        if (!cancelled) {
-          setVideoTitle(`YouTube · ${vid}`);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isDashboard, cur?.videoId]);
 
   // Parent refreshes `initialPlayer` on an interval. Never overwrite newer socket/REST
   // state with a stale in-flight or cached HTTP response (older `serverTime`).
@@ -618,31 +597,6 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
           </div>
 
           <div className={styles.dashDeck}>
-            <div className={styles.deckTop}>
-              {cur?.isPlaying && cur?.videoId ? (
-                <span className={styles.onAirBadge}>ON AIR</span>
-              ) : (
-                <span className={styles.idleBadge}>IDLE</span>
-              )}
-              <h3 className={styles.dashVideoTitle}>{cur?.videoId ? videoTitle || "Loading title…" : "Nothing playing"}</h3>
-            </div>
-            <div className={styles.deckActions}>
-              {watchUrl ? (
-                <a className={styles.btnYtOutline} href={watchUrl} target="_blank" rel="noreferrer">
-                  Open on YouTube
-                </a>
-              ) : null}
-              {isAdmin ? (
-                <>
-                  <button type="button" className={styles.btnStopSolid} onClick={() => sendCmd("stop")}>
-                    Stop
-                  </button>
-                  <button type="button" className={styles.btnNextDash} onClick={() => sendCmd("next")} disabled={!q.length}>
-                    Next ››
-                  </button>
-                </>
-              ) : null}
-            </div>
             {showProgress || (isAdmin && yReady) ? progressBlock : null}
           </div>
         </div>
@@ -666,7 +620,7 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
               </form>
             ) : null}
           </div>
-          {!isAdmin ? <p className={styles.queueHint}>Playback follows the group admin.</p> : null}
+          {!isAdmin && <p className={styles.queueHint}>Playback follows the group admin.</p>}
           <ul className={styles.queueListDash} aria-label="Video queue">
             {q.length === 0 ? (
               <li className={styles.queueEmpty}>No videos in the queue yet.</li>
@@ -697,11 +651,23 @@ export function GroupYouTubePlayer({ groupId, socket, isAdmin, initialPlayer, us
                   )}
                   {isAdmin ? (
                     <div className={styles.qRowActionsDash}>
-                      <button type="button" className={styles.qMiniBtn} onClick={() => sendCmd("setCurrent", { itemId: it.id })}>
-                        Play this
+                      <button
+                        type="button"
+                        className={`${styles.iconBtn} ${styles.qDashActionBtn}`}
+                        data-tooltip="Play this"
+                        onClick={() => sendCmd("setCurrent", { itemId: it.id })}
+                        aria-label="Play this"
+                      >
+                        <IconPlay />
                       </button>
-                      <button type="button" className={styles.qMiniBtnDanger} onClick={() => sendCmd("remove", { itemId: it.id })}>
-                        Remove
+                      <button
+                        type="button"
+                        className={`${styles.iconBtn} ${styles.qDashActionBtn} ${styles.qDashActionBtnDanger}`}
+                        data-tooltip="Remove from queue"
+                        onClick={() => sendCmd("remove", { itemId: it.id })}
+                        aria-label="Remove from queue"
+                      >
+                        <IconTrash />
                       </button>
                     </div>
                   ) : null}

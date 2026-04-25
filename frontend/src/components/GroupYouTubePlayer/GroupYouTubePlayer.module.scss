@@ -123,7 +123,9 @@
 }
 
 /* Hover / focus-visible; data-tooltip avoids native title tooltip overlap. */
-.adminBar [data-tooltip] {
+.adminBar [data-tooltip],
+.adminBarDash [data-tooltip],
+.qRowActionsDash [data-tooltip] {
   position: relative;
   z-index: 0;
 
@@ -418,119 +420,12 @@
   border-top: 1px solid color-mix(in srgb, var(--border) 85%, #7c3aed 8%);
 }
 
-.deckTop {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.5rem 0.75rem;
-}
-
-.onAirBadge {
-  flex-shrink: 0;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  padding: 0.28rem 0.55rem;
-  border-radius: 6px;
-  color: #052e16;
-  background: linear-gradient(135deg, #4ade80, #22c55e);
-  box-shadow: 0 0 16px rgba(34, 197, 94, 0.35);
-}
-
-.idleBadge {
-  flex-shrink: 0;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 0.28rem 0.5rem;
-  border-radius: 6px;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--border) 55%, transparent);
-  border: 1px solid var(--border);
-}
-
-.dashVideoTitle {
-  margin: 0;
-  flex: 1 1 12rem;
-  min-width: 0;
-  font-size: clamp(1rem, 2.2vw, 1.2rem);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.3;
-  color: var(--text);
-}
-
-.deckActions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btnYtOutline {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.45rem 0.95rem;
-  border-radius: 10px;
-  font-size: 0.84rem;
-  font-weight: 600;
-  text-decoration: none;
-  color: #7c3aed;
-  border: 1px solid color-mix(in srgb, #7c3aed 45%, var(--border));
-  background: transparent;
-  transition:
-    background 0.12s ease,
-    border-color 0.12s ease;
-
-  &:hover {
-    background: color-mix(in srgb, #7c3aed 8%, transparent);
-    border-color: #7c3aed;
-  }
-}
-
-.btnStopSolid {
-  font: inherit;
-  font-weight: 700;
-  font-size: 0.84rem;
-  padding: 0.45rem 1rem;
-  border-radius: 10px;
-  border: none;
-  cursor: pointer;
-  color: #fff;
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
-  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.35);
-
-  &:hover {
-    filter: brightness(1.06);
-  }
-}
-
-.btnNextDash {
-  font: inherit;
-  font-weight: 700;
-  font-size: 0.84rem;
-  padding: 0.45rem 1rem;
-  border-radius: 10px;
-  cursor: pointer;
-  color: #7c3aed;
-  border: 2px solid color-mix(in srgb, #7c3aed 55%, var(--border));
-  background: transparent;
-
-  &:hover:not(:disabled) {
-    background: color-mix(in srgb, #7c3aed 10%, transparent);
-  }
-
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-}
-
 .controlRowDash {
   display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
   width: 100%;
   padding-top: 0.15rem;
 }
@@ -540,10 +435,12 @@
   flex-wrap: wrap;
   gap: 0.4rem;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .progressRowDash {
-  width: 100%;
+  /* share one row with .adminBarDash; width from .progressRow flex, not full-width column */
+  width: auto;
 
   .tLeft {
     color: var(--text);
@@ -685,8 +582,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  max-height: min(240px, 32vh);
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .queueEmpty {
@@ -762,25 +658,25 @@
 .qRowActionsDash {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.35rem;
   margin-left: auto;
 }
 
-.qMiniBtn,
-.qMiniBtnDanger {
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 0.28rem 0.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+.qDashActionBtn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
 }
 
-.qMiniBtnDanger {
+.iconBtn.qDashActionBtnDanger {
   color: #fecaca;
   border-color: rgba(248, 113, 113, 0.4);
   background: color-mix(in srgb, var(--danger) 12%, transparent);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 22%, transparent);
+    border-color: rgba(248, 113, 113, 0.55);
+    color: #fff;
+  }
 }

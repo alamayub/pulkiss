@@ -947,24 +947,6 @@
 
 .dashPlayer {
   min-width: 0;
-  border-radius: 20px;
-  padding: 1px;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, #7c3aed 45%, transparent),
-    color-mix(in srgb, #4c1d95 35%, transparent) 40%,
-    color-mix(in srgb, var(--border) 90%, transparent) 100%
-  );
-  box-shadow:
-    0 1px 0 color-mix(in srgb, #fff 12%, transparent) inset,
-    0 24px 56px rgba(76, 29, 149, 0.12);
-
-  :global(html[data-theme="dark"]) & {
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.35), rgba(30, 27, 75, 0.5) 50%, rgba(15, 12, 24, 0.9));
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.06) inset,
-      0 28px 64px rgba(0, 0, 0, 0.45);
-  }
 
   @media (min-width: 1100px) {
     grid-column: 1;
@@ -974,11 +956,8 @@
 
 .dashCard {
   border-radius: 19px;
-  border: none;
   padding: 0;
   overflow: hidden;
-  background: color-mix(in srgb, var(--surface) 96%, #0f0720 4%);
-  box-shadow: none;
 }
 
 .dashChat {
@@ -1131,8 +1110,9 @@
   background: color-mix(in srgb, var(--surface) 94%, var(--bg));
   display: flex;
   flex-direction: column;
-  min-height: 16rem;
-  max-height: min(52vh, 28rem);
+  /* subtract top chrome + tabs so chat uses remaining viewport height */
+  min-height: calc(100dvh - 15rem);
+  max-height: none;
   overflow: hidden;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05);
 
