@@ -91,6 +91,22 @@ function RefreshToolbarIcon() {
   );
 }
 
+function IconUserPlus() {
+  return (
+    <svg className={styles.createUserBtnIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+      />
+      <circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 8v6M22 11h-6" />
+    </svg>
+  );
+}
+
 /**
  * @param {{
  *   u: Record<string, unknown>,
@@ -595,6 +611,7 @@ export function AdminUsersPage({ user, isFullAdmin }) {
             spellCheck={false}
           />
           <button type="button" className={`${styles.btnPrimary} ${styles.toolbarCreateBtn}`} onClick={handleOpenCreateUser}>
+            <IconUserPlus />
             Create user
           </button>
         </div>
