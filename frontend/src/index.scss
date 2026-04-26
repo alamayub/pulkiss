@@ -1,65 +1,87 @@
-/* Palette derived from app logos: cyan #00B0FF, deep blue #007BFF, magenta #E91E63, cool gray #F4F7F9 */
+/* Pulkiss — purple / violet product UI (glass + rounded) */
 
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   color-scheme: dark;
-  --font: "DM Sans", system-ui, -apple-system, sans-serif;
+  --font: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   --page-pad: clamp(0.65rem, 3.5vw, 1.5rem);
-  --container-max: 1250px;
+  --container-max: none;
+  --sidebar-w: 15.75rem;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
 
-  /* Dark */
-  --bg: #0b1219;
-  --surface: #121d28;
-  --border: #1f3347;
-  --text: #eef6fb;
-  --muted: #8aa6bc;
-  /* Bright cyan — links, focus, active text on dark */
-  --accent: #00b0ff;
-  /* Deep logo blue — filled buttons (contrast with white text) */
-  --accent-solid: #007bff;
-  /* Logo network nodes */
-  --brand-magenta: #e91e63;
-  --danger: #f43f5e;
-  --success: #26d97a;
-  --warning: #ffb020;
+  /* Dark — deep violet slate */
+  --bg: #0c0618;
+  --surface: #161024;
+  --surface-elevated: #1e1530;
+  --border: #2d2245;
+  --text: #f4f0ff;
+  --muted: #9d93b8;
+  --brand-purple: #8b5cf6;
+  --brand-purple-deep: #6d28d9;
+  --accent: #c4b5fd;
+  --accent-solid: #7c3aed;
+  --brand-magenta: #e879f9;
+  --danger: #fb7185;
+  --danger-deep: #e11d48;
+  --success: #34d399;
+  --warning: #fbbf24;
   --on-accent: #ffffff;
-  --body-gradient-spot: #0a2840;
-  --header-bg: rgba(11, 18, 25, 0.92);
-  --footer-bg: rgba(11, 18, 25, 0.62);
-  --nav-hover-bg: rgba(0, 176, 255, 0.1);
-  --nav-active-bg: rgba(0, 176, 255, 0.16);
-  --overlay-scrim: rgba(8, 14, 20, 0.82);
-  --card-tint: rgba(0, 176, 255, 0.05);
-  --modal-backdrop: rgba(0, 10, 20, 0.62);
+  --body-gradient-spot: #2a1050;
+  --header-bg: rgba(12, 6, 24, 0.88);
+  --footer-bg: rgba(12, 6, 24, 0.72);
+  --nav-hover-bg: rgba(139, 92, 246, 0.12);
+  --nav-active-bg: rgba(139, 92, 246, 0.2);
+  --overlay-scrim: rgba(6, 3, 14, 0.86);
+  --card-tint: rgba(139, 92, 246, 0.08);
+  --modal-backdrop: rgba(4, 2, 12, 0.65);
+  --glass-bg: rgba(30, 21, 48, 0.55);
+  --glass-border: rgba(196, 181, 253, 0.14);
+  --glass-blur: 18px;
 }
 
 html[data-theme="light"] {
   color-scheme: light;
-  --bg: #f4f7f9;
+  --bg: #e8ecf4;
   --surface: #ffffff;
-  --border: #c5d7e8;
-  --text: #0a1628;
-  --muted: #4a6680;
-  --accent: #0066b3;
-  --accent-solid: #007bff;
-  --brand-magenta: #d81b60;
-  --danger: #d32f2f;
-  --success: #00875a;
-  --warning: #e65100;
+  --surface-elevated: #f8f7fc;
+  --border: #d4d0e8;
+  --text: #141022;
+  --muted: #5c5478;
+  --brand-purple: #7c3aed;
+  --brand-purple-deep: #5b21b6;
+  --accent: #6d28d9;
+  --accent-solid: #7c3aed;
+  --brand-magenta: #c026d3;
+  --danger: #e11d48;
+  --danger-deep: #be123c;
+  --success: #059669;
+  --warning: #d97706;
   --on-accent: #ffffff;
-  --body-gradient-spot: #d4ebff;
-  --header-bg: rgba(255, 255, 255, 0.92);
-  --footer-bg: rgba(244, 247, 249, 0.92);
-  --nav-hover-bg: rgba(0, 123, 255, 0.08);
-  --nav-active-bg: rgba(0, 176, 255, 0.14);
-  --overlay-scrim: rgba(248, 250, 252, 0.92);
-  --card-tint: rgba(0, 123, 255, 0.05);
-  --modal-backdrop: rgba(10, 22, 40, 0.42);
+  --body-gradient-spot: #ddd6fe;
+  --header-bg: rgba(255, 255, 255, 0.9);
+  --footer-bg: rgba(248, 247, 252, 0.94);
+  --nav-hover-bg: rgba(124, 58, 237, 0.08);
+  --nav-active-bg: rgba(124, 58, 237, 0.12);
+  --overlay-scrim: rgba(248, 246, 255, 0.92);
+  --card-tint: rgba(124, 58, 237, 0.06);
+  --modal-backdrop: rgba(20, 16, 40, 0.4);
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(124, 58, 237, 0.12);
+  --glass-blur: 20px;
 }
 
 * {
   box-sizing: border-box;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge */
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 html,
@@ -72,7 +94,10 @@ body,
 
 body {
   font-family: var(--font);
-  background: radial-gradient(1200px 800px at 20% 0%, var(--body-gradient-spot) 0%, var(--bg) 55%);
+  background:
+    radial-gradient(1000px 700px at 15% -10%, color-mix(in srgb, var(--body-gradient-spot) 85%, transparent), transparent 52%),
+    radial-gradient(800px 500px at 100% 30%, color-mix(in srgb, var(--brand-purple) 12%, transparent), transparent 45%),
+    var(--bg);
   color: var(--text);
   line-height: 1.5;
   overflow-x: clip;
@@ -88,9 +113,9 @@ a {
 
 code {
   font-size: 0.85em;
-  background: var(--surface);
+  background: var(--surface-elevated);
   padding: 0.1em 0.35em;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid var(--border);
 }
 

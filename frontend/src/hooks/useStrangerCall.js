@@ -21,13 +21,14 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
   const [inQueue, setInQueue] = useState(false);
   const [inCall, setInCall] = useState(false);
   const [canChat, setCanChat] = useState(false);
-  const [chatLines, setChatLines] = useState(() => /** @type {{ self: boolean, text: string }[]} */ ([]));
+  const [chatLines, setChatLines] = useState(() => /** @type {{ self: boolean, text: string, at: number }[]} */ ([]));
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [remoteCameraOn, setRemoteCameraOn] = useState(true);
   /** Avatar image URLs from the server (same for you and your peer’s client). */
   const [selfAvatarUrl, setSelfAvatarUrl] = useState("");
   const [peerAvatarUrl, setPeerAvatarUrl] = useState("");
+  const [peerUid, setPeerUid] = useState("");
 
   const iceServersRef = useRef([{ urls: "stun:stun.l.google.com:19302" }]);
   const localStreamRef = useRef(null);
@@ -77,6 +78,7 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     closePeer();
     currentMatchIdRef.current = null;
     setPeerAvatarUrl("");
+    setPeerUid("");
     setRemoteCameraOn(true);
     setInCall(false);
     setCanChat(false);
@@ -163,6 +165,8 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
         setSearchStatus("Partner clicked Next. Click Start to search again.");
       } else if (reason === "peer-disconnected") {
         setSearchStatus("Your match disconnected.");
+      } else if (reason === "left") {
+        setSearchStatus("Your match ended the call.");
       } else {
         setSearchStatus("Call ended.");
       }
@@ -185,6 +189,9 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
       }
       if (typeof data.peerAvatarUrl === "string" && data.peerAvatarUrl) {
         setPeerAvatarUrl(data.peerAvatarUrl);
+      }
+      if (typeof data.peerUid === "string" && data.peerUid) {
+        setPeerUid(data.peerUid);
       }
 
       try {
@@ -316,7 +323,7 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     const onI = (d) => onRtcIce(d);
     const onMsg = (msg) => {
       if (msg?.text) {
-        setChatLines((c) => [...c, { self: false, text: msg.text }]);
+        setChatLines((c) => [...c, { self: false, text: msg.text, at: Date.now() }]);
       }
     };
     socket.on("match:found", onFound);
@@ -383,6 +390,7 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     clearChat();
     currentMatchIdRef.current = null;
     setPeerAvatarUrl("");
+    setPeerUid("");
     setRemoteCameraOn(true);
     setInCall(false);
     setCanChat(false);
@@ -390,12 +398,32 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     setSearchStatus("You skipped. Click Start for another match.");
   }, [socket, closePeer, clearChat]);
 
+  const endSession = useCallback(() => {
+    if (socket?.connected) {
+      if (inCall) {
+        socket.emit("match:leave");
+      }
+      socket.emit("queue:leave");
+    }
+    closePeer();
+    clearChat();
+    currentMatchIdRef.current = null;
+    setPeerAvatarUrl("");
+    setPeerUid("");
+    setRemoteCameraOn(true);
+    setInCall(false);
+    setCanChat(false);
+    setInQueue(false);
+    endLocalMedia();
+    setSearchStatus("Session ended. Click Start when you want to match again.");
+  }, [socket, inCall, closePeer, clearChat, endLocalMedia]);
+
   const sendMessage = useCallback(
     (text) => {
       if (!text?.trim() || !currentMatchIdRef.current || !socket) return;
       const t = text.slice(0, 2000);
       socket.emit("chat:message", { text: t });
-      setChatLines((c) => [...c, { self: true, text: t }]);
+      setChatLines((c) => [...c, { self: true, text: t, at: Date.now() }]);
     },
     [socket]
   );
@@ -435,9 +463,11 @@ export function useStrangerCall(socket, localRef, remoteRef, options = {}) {
     remoteCameraOn,
     selfAvatarUrl,
     peerAvatarUrl,
+    peerUid,
     startSearch,
     stopSearch,
     next,
+    endSession,
     sendMessage,
     toggleVideo,
     toggleAudio,

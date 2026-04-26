@@ -3,6 +3,56 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import styles from "./GroupsListPage.module.scss";
 import { groupsCreate, groupsList } from "../../lib/api";
 
+/** @param {string} iso */
+function formatListDate(iso) {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  } catch {
+    return "";
+  }
+}
+
+/** @param {string | undefined} uid */
+function shortUid(uid) {
+  if (!uid || typeof uid !== "string") return "—";
+  return uid.length > 10 ? `${uid.slice(0, 8)}…` : uid;
+}
+
+/** @param {string} id */
+function hueFromId(id) {
+  let h = 216;
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 33 + id.charCodeAt(i)) >>> 0;
+  }
+  return h % 360;
+}
+
+/**
+ * @param {{ logoUrl?: string | null, name: string, groupId: string }} props
+ */
+function GroupCardThumb({ logoUrl, name, groupId }) {
+  const [broke, setBroke] = useState(false);
+  const letter = (name || "?").trim().slice(0, 1).toUpperCase() || "?";
+  const showImg = !!(logoUrl && !broke);
+  return (
+    <div className={styles.thumb} style={{ "--thumb-h": String(hueFromId(groupId)) }}>
+      {showImg ? (
+        <img
+          src={logoUrl}
+          alt=""
+          className={styles.thumbImg}
+          onError={() => setBroke(true)}
+          decoding="async"
+          referrerPolicy="no-referrer"
+        />
+      ) : null}
+      <span className={styles.thumbFallback} aria-hidden={showImg} style={{ display: showImg ? "none" : "flex" }}>
+        {letter}
+      </span>
+    </div>
+  );
+}
+
 function ChevronRight() {
   return (
     <svg className={styles.itemChevron} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -120,7 +170,10 @@ export function GroupsListPage() {
     const name = createName.trim();
     const description = createDescription.trim();
     try {
-      const r = await groupsCreate({ name, description: description || undefined });
+      const r = await groupsCreate({
+        name,
+        description: description || undefined,
+      });
       if (r.group?.id) {
         setCreateOpen(false);
         navigate(`/groups/${r.group.id}`);
@@ -134,23 +187,6 @@ export function GroupsListPage() {
 
   return (
     <div className={styles.wrap}>
-      <div className={styles.hero}>
-        <header className={styles.header}>
-          <div className={styles.titleBlock}>
-            <h1 className={styles.title}>Groups</h1>
-            <p className={styles.subtitle}>
-              Shared spaces for chat and watch-together. Join a group or start your own as admin.
-            </p>
-          </div>
-          <div className={styles.actions}>
-            <button type="button" className={styles.primary} onClick={openCreateModal}>
-              <PlusIcon />
-              Create group
-            </button>
-          </div>
-        </header>
-      </div>
-
       {err ? <p className={styles.err}>{err}</p> : null}
 
       {loading && !groups.length ? (
@@ -165,15 +201,60 @@ export function GroupsListPage() {
           {groups.map((g) => (
             <li key={g.id}>
               <Link to={`/groups/${g.id}`} className={styles.item}>
-                <div className={styles.itemBody}>
-                  <span className={styles.name}>{g.name}</span>
-                  <span className={styles.meta}>
-                    {g.memberCount} members
-                    {g.isMember ? " · You’re in this group" : ""}
-                    {g.hasPendingRequest ? " · Join request pending" : ""}
-                  </span>
+                <GroupCardThumb logoUrl={g.logoUrl} name={g.name} groupId={g.id} />
+                <div className={styles.itemMain}>
+                  <div className={styles.itemTop}>
+                    <h2 className={styles.itemTitle}>{g.name}</h2>
+                    <ChevronRight />
+                  </div>
+                  {g.description ? (
+                    <p className={styles.itemDesc}>{g.description}</p>
+                  ) : (
+                    <p className={styles.itemDescMuted}>No description yet.</p>
+                  )}
+                  <div className={styles.itemChips}>
+                    {g.viewerRole === "admin" ? (
+                      <span className={styles.chipAdmin}>You’re admin</span>
+                    ) : null}
+                    {g.isMember && g.viewerRole === "member" ? <span className={styles.chipMember}>Member</span> : null}
+                    {!g.isMember && g.hasPendingRequest ? (
+                      <span className={styles.chipPending}>Join request pending</span>
+                    ) : null}
+                    {!g.isMember && !g.hasPendingRequest ? <span className={styles.chipBrowse}>Not a member</span> : null}
+                  </div>
+                  <div className={styles.itemFoot}>
+                    <span>
+                      {g.memberCount} {g.memberCount === 1 ? "member" : "members"}
+                    </span>
+                    <span className={styles.dotSep} aria-hidden>
+                      ·
+                    </span>
+                    <span>Since {formatListDate(g.createdAt)}</span>
+                    <span className={styles.dotSep} aria-hidden>
+                      ·
+                    </span>
+                    <span>Owner {shortUid(g.createdBy)}</span>
+                    {(Number(g.watchQueueLength) > 0 || g.watchHasVideo) ? (
+                      <>
+                        <span className={styles.dotSep} aria-hidden>
+                          ·
+                        </span>
+                        <span>
+                          Watch queue {Number(g.watchQueueLength) || 0}
+                          {g.watchHasVideo ? (g.watchIsPlaying ? " · Live" : " · Paused") : ""}
+                        </span>
+                      </>
+                    ) : null}
+                    {g.pendingJoinCount != null && g.pendingJoinCount > 0 ? (
+                      <>
+                        <span className={styles.dotSep} aria-hidden>
+                          ·
+                        </span>
+                        <span className={styles.footRequests}>{g.pendingJoinCount} join requests</span>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
-                <ChevronRight />
               </Link>
             </li>
           ))}
@@ -189,6 +270,13 @@ export function GroupsListPage() {
             Create your first group
           </button>
         </div>
+      ) : null}
+
+      {!createOpen ? (
+        <button type="button" className={`${styles.primary} ${styles.createFab}`} onClick={openCreateModal}>
+          <PlusIcon />
+          <span>Create group</span>
+        </button>
       ) : null}
 
       {createOpen ? (
@@ -210,7 +298,8 @@ export function GroupsListPage() {
               Create a group
             </h2>
             <p className={styles.modalIntro}>
-              You’ll be the admin: approve join requests, remove members, and control watch-together playback.
+              You’ll be the admin: approve join requests, remove members, and control watch-together playback. The server
+              generates a logo from the group name.
             </p>
 
             {createErr ? <p className={styles.createErr}>{createErr}</p> : null}

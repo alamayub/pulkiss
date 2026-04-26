@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   adminListUsers,
   adminSearchUsers,
@@ -7,6 +8,7 @@ import {
   adminCreateUser,
   adminFetchCreateUserRoleOptions,
 } from "../../lib/api";
+import { addToast } from "../../app/uiSlice";
 import styles from "./AdminUsersPage.module.scss";
 
 function roleLabel(role) {
@@ -45,6 +47,27 @@ function presenceLastInAppLabel(p) {
   return "—";
 }
 
+function IconBell() {
+  return (
+    <svg className={styles.headerIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+/** @param {string | undefined} name @param {string | undefined} uid */
+function headerInitials(name, uid) {
+  const s = (name || "").trim();
+  if (s.length >= 2) {
+    return (s[0] + s[s.length - 1]).toUpperCase();
+  }
+  if (s.length === 1) {
+    return s[0].toUpperCase();
+  }
+  return (uid || "?").slice(0, 2).toUpperCase();
+}
+
 function RefreshToolbarIcon() {
   return (
     <svg className={styles.toolbarIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -64,6 +87,22 @@ function RefreshToolbarIcon() {
         d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"
       />
       <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M16 21h5v-5" />
+    </svg>
+  );
+}
+
+function IconUserPlus() {
+  return (
+    <svg className={styles.createUserBtnIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"
+      />
+      <circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M19 8v6M22 11h-6" />
     </svg>
   );
 }
@@ -173,6 +212,8 @@ const AdminUserTableRow = memo(function AdminUserTableRow({
  * @param {{ user: { uid: string, email?: string | null, role?: string | null }, isFullAdmin: boolean }} props
  */
 export function AdminUsersPage({ user, isFullAdmin }) {
+  const dispatch = useDispatch();
+  const online = useSelector((s) => s.room.onlineCount);
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({ onlineInApp: 0 });
   const [nextToken, setNextToken] = useState(null);
@@ -493,28 +534,58 @@ export function AdminUsersPage({ user, isFullAdmin }) {
     setCreateModalOpen(true);
   }, []);
 
+  const roleChip = isFullAdmin ? "Full admin" : "Moderator";
+
   return (
     <div className={styles.wrap}>
-      <header className={styles.top}>
-        <div>
-          <h1>Firebase users</h1>
-          <p className={styles.muted}>
-            Signed in as <strong>{user?.email}</strong>
-            {isFullAdmin ? " (full admin)" : " (moderator)"}. Server rules: moderators can list and create users; only
-            the configured admin email can edit, disable, or delete accounts.
+      <header className={styles.pageHeader}>
+        <div className={styles.pageHeaderText}>
+          <h1 className={styles.pageTitle}>User management</h1>
+          <p className={styles.pageSub}>
+            Firebase Auth directory. Signed in as <strong>{user?.email}</strong>{" "}
+            <span className={styles.roleChip}>{roleChip}</span>. Moderators can list and create users; only the
+            configured admin can edit, disable, or delete.
           </p>
+        </div>
+        <div className={styles.pageHeaderRight}>
+          <div className={styles.onlinePill}>
+            <span className={styles.onlineDot} aria-hidden />
+            <span className={styles.onlineNum}>{online.toLocaleString()}</span>
+            <span className={styles.onlineLabel}>Online</span>
+          </div>
+          <button
+            type="button"
+            className={styles.iconBtn}
+            aria-label="Notifications"
+            onClick={() => dispatch(addToast({ type: "info", message: "No admin notifications." }))}
+          >
+            <IconBell />
+          </button>
+          <div className={styles.headerAvatar} aria-hidden>
+            {user?.photoURL ? (
+              <img src={user.photoURL} alt="" className={styles.headerAvatarImg} />
+            ) : (
+              <span>{headerInitials(user?.displayName, user?.uid)}</span>
+            )}
+          </div>
         </div>
       </header>
 
-      {error && <p className={styles.errorBanner}>{error}</p>}
-      {createSuccess && <p className={styles.successBanner}>{createSuccess}</p>}
+      {error ? <p className={styles.errorBanner}>{error}</p> : null}
+      {createSuccess ? <p className={styles.successBanner}>{createSuccess}</p> : null}
 
-      <p className={styles.statsBar}>
-        Active in this app right now: <strong>{stats.onlineInApp}</strong> (unique accounts with an open connection to
-        this server)
-      </p>
+      <div className={styles.statsStrip}>
+        <div className={styles.statPill}>
+          <span className={styles.statPillValue}>{stats.onlineInApp}</span>
+          <span className={styles.statPillLabel}>Active in app</span>
+        </div>
+        <div className={styles.statPill}>
+          <span className={styles.statPillValue}>{users.length}</span>
+          <span className={styles.statPillLabel}>Users loaded</span>
+        </div>
+      </div>
 
-      <div className={styles.tableToolbar}>
+      <section className={styles.toolbarCard} aria-label="Search and actions">
         <label className={styles.searchLabel} htmlFor="admin-user-search">
           Search users
         </label>
@@ -539,7 +610,8 @@ export function AdminUsersPage({ user, isFullAdmin }) {
             autoComplete="off"
             spellCheck={false}
           />
-          <button type="button" className={`${styles.primary} ${styles.toolbarCreateBtn}`} onClick={handleOpenCreateUser}>
+          <button type="button" className={`${styles.btnPrimary} ${styles.toolbarCreateBtn}`} onClick={handleOpenCreateUser}>
+            <IconUserPlus />
             Create user
           </button>
         </div>
@@ -562,8 +634,9 @@ export function AdminUsersPage({ user, isFullAdmin }) {
           </p>
         ) : null}
         {searchError ? <p className={styles.searchError}>{searchError}</p> : null}
-      </div>
+      </section>
 
+      <section className={styles.tableCard} aria-label="User list">
       <div className={styles.tableWrap}>
         {loading && users.length === 0 ? (
           <p className={styles.muted}>Loading…</p>
@@ -610,17 +683,15 @@ export function AdminUsersPage({ user, isFullAdmin }) {
           </table>
         )}
       </div>
+      </section>
 
-      {nextToken && (
-        <button
-          type="button"
-          className={styles.primary}
-          disabled={loading}
-          onClick={() => void load(nextToken)}
-        >
-          {loading ? "Loading…" : "Load more"}
-        </button>
-      )}
+      {nextToken ? (
+        <div className={styles.loadMoreRow}>
+          <button type="button" className={styles.btnPrimary} disabled={loading} onClick={() => void load(nextToken)}>
+            {loading ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      ) : null}
 
       {createModalOpen && (
         <div
@@ -706,7 +777,7 @@ export function AdminUsersPage({ user, isFullAdmin }) {
               </div>
             </div>
             <div className={styles.row}>
-              <button type="submit" className={styles.primary} disabled={createBusy}>
+              <button type="submit" className={styles.btnPrimary} disabled={createBusy}>
                 {createBusy ? "Creating…" : "Create user"}
               </button>
               <button
@@ -747,7 +818,7 @@ export function AdminUsersPage({ user, isFullAdmin }) {
               Account disabled
             </label>
             <div className={styles.row}>
-              <button type="submit" className={styles.primary} disabled={saving}>
+              <button type="submit" className={styles.btnPrimary} disabled={saving}>
                 {saving ? "Saving…" : "Save"}
               </button>
               <button type="button" className={styles.secondary} onClick={closeEdit} disabled={saving}>

@@ -29,6 +29,59 @@ function memberInitials(name, uid) {
   return (uid || "?").slice(0, 2).toUpperCase();
 }
 
+/** @param {{ url: string, imgClassName?: string }} props */
+function GroupHeaderLogo({ url, imgClassName }) {
+  const [hide, setHide] = useState(false);
+  if (!url || hide) {
+    return null;
+  }
+  return (
+    <img
+      src={url}
+      alt=""
+      className={imgClassName || styles.overviewLogo}
+      decoding="async"
+      referrerPolicy="no-referrer"
+      onError={() => setHide(true)}
+    />
+  );
+}
+
+/** @param {string | undefined} iso */
+function formatRelativeShort(iso) {
+  if (!iso) {
+    return "";
+  }
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) {
+    return "";
+  }
+  const diff = Date.now() - t;
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) {
+    return "just now";
+  }
+  const m = Math.floor(sec / 60);
+  if (m < 60) {
+    return `${m}m ago`;
+  }
+  const h = Math.floor(m / 60);
+  if (h < 48) {
+    return `${h}h ago`;
+  }
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+/** @param {string | undefined} iso */
+function formatMsgTime(iso) {
+  try {
+    return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
 function BackArrowIcon() {
   return (
     <svg className={styles.backIcon} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -40,6 +93,121 @@ function BackArrowIcon() {
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+function IconInvite() {
+  return (
+    <svg className={styles.menuIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="8.5" cy="7" r="4" />
+      <line x1="20" y1="8" x2="20" y2="14" />
+      <line x1="23" y1="11" x2="17" y2="11" />
+    </svg>
+  );
+}
+
+function IconBell() {
+  return (
+    <svg className={styles.headerIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+function IconMore() {
+  return (
+    <svg className={styles.headerIcon} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <circle cx="12" cy="5" r="1.5" />
+      <circle cx="12" cy="12" r="1.5" />
+      <circle cx="12" cy="19" r="1.5" />
+    </svg>
+  );
+}
+
+function IconCheck() {
+  return (
+    <svg className={styles.iconMini} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+      <polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconX() {
+  return (
+    <svg className={styles.iconMini} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+      <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/**
+ * @param {{
+ *   styles: Record<string, string>,
+ *   messages: Array<{ id: string, fromUid: string, fromName: string, text: string, createdAt?: string }>,
+ *   user: { uid?: string } | null | undefined,
+ *   msgErr: string,
+ *   text: string,
+ *   setText: (s: string) => void,
+ *   send: (e: import("react").FormEvent) => void | Promise<void>,
+ *   logRef: React.RefObject<HTMLDivElement | null>,
+ *   disabled: boolean,
+ *   variant?: "page" | "aside",
+ * }} props
+ */
+function GroupChatPanel({ styles: s, messages, user, msgErr, text, setText, send, logRef, disabled, variant = "page" }) {
+  const root = variant === "aside" ? s.chatAside : s.chatCard;
+  return (
+    <div className={root}>
+      <div className={s.chatCardHead}>Chat</div>
+      {msgErr ? <p className={s.errInline}>{msgErr}</p> : null}
+      <div className={s.chatScroll} ref={logRef}>
+        {messages.map((m) => {
+          const mine = m.fromUid === user?.uid;
+          return (
+            <div key={m.id} className={`${s.msgRow} ${mine ? s.msgSelf : ""}`}>
+              <div className={s.msgAvatar}>
+                <span className={s.msgAvatarLetter}>{memberInitials(m.fromName, m.fromUid)}</span>
+              </div>
+              <div className={s.msgBody}>
+                <div className={s.msgMeta}>
+                  <span className={s.msgName}>{m.fromName}</span>
+                  <time className={s.msgTime} dateTime={m.createdAt || undefined}>
+                    {m.createdAt ? formatMsgTime(m.createdAt) : ""}
+                  </time>
+                </div>
+                <div className={s.msgBubble}>{m.text}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <form
+        className={s.chatComposer}
+        onSubmit={(e) => {
+          void send(e);
+        }}
+      >
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={2000}
+          placeholder="Type a message…"
+          disabled={disabled}
+          aria-label="Chat message"
+        />
+        <button type="button" className={s.emojiBtn} disabled={disabled} aria-label="Emoji" tabIndex={-1}>
+          <span aria-hidden>☺</span>
+        </button>
+        <button type="submit" className={s.sendFab} disabled={disabled || !text.trim()} aria-label="Send message">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -57,7 +225,10 @@ export function GroupDetailPage({ user }) {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
   const [msgErr, setMsgErr] = useState("");
+  const [tab, setTab] = useState(/** @type {"overview" | "chat" | "members" | "requests" | "player"} */ ("overview"));
+  const [moreOpen, setMoreOpen] = useState(false);
   const logRef = useRef(null);
+  const moreWrapRef = useRef(null);
   const ignoreNextDisbandedRef = useRef(false);
 
   const loadDetail = useCallback(async () => {
@@ -98,11 +269,6 @@ export function GroupDetailPage({ user }) {
 
   const detailGroupId = detail?.group?.id;
 
-  /**
-   * Refresh group detail (members, join requests for admins, pending state for you) on an interval
-   * so the page matches the server without a manual refresh. `detailGroupId` (not `detail`) keeps the
-   * interval from resetting on every successful load.
-   */
   useEffect(() => {
     if (!groupId || !detailGroupId) {
       return undefined;
@@ -126,7 +292,35 @@ export function GroupDetailPage({ user }) {
     if (logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, tab]);
+
+  const isMember = !!detail?.isMember;
+  const isAdmin = !!detail?.isAdmin;
+  useEffect(() => {
+    if (!detail) {
+      return;
+    }
+    if (!isMember && (tab === "chat" || tab === "player")) {
+      setTab("overview");
+    }
+    if (!isAdmin && tab === "requests") {
+      setTab("overview");
+    }
+  }, [detail, isMember, isAdmin, tab]);
+
+  useEffect(() => {
+    if (!moreOpen) {
+      return undefined;
+    }
+    const onDoc = (e) => {
+      const el = moreWrapRef.current;
+      if (el && !el.contains(/** @type {Node} */ (e.target))) {
+        setMoreOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [moreOpen]);
 
   const onJoin = async () => {
     setErr("");
@@ -173,6 +367,7 @@ export function GroupDetailPage({ user }) {
   };
 
   const onLeave = async () => {
+    setMoreOpen(false);
     if (!window.confirm("Leave this group?")) {
       return;
     }
@@ -190,6 +385,7 @@ export function GroupDetailPage({ user }) {
   };
 
   const onCloseGroup = async () => {
+    setMoreOpen(false);
     if (
       !window.confirm(
         "Close this group? It will be removed for you and all members, and the chat and watch data will be deleted on the server."
@@ -204,14 +400,28 @@ export function GroupDetailPage({ user }) {
         ignoreNextDisbandedRef.current = false;
       }, 3000);
       await groupsCloseGroup(groupId);
-      dispatch(
-        addToast({ type: "success", message: "Group closed." })
-      );
+      dispatch(addToast({ type: "success", message: "Group closed." }));
       nav("/groups");
     } catch (e) {
       setErr(e.data?.error || e.message);
     }
   };
+
+  const onInvite = useCallback(async () => {
+    setMoreOpen(false);
+    const url = `${window.location.origin}/groups/${groupId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      dispatch(addToast({ type: "success", message: "Group link copied to clipboard." }));
+    } catch {
+      dispatch(
+        addToast({
+          type: "warning",
+          message: `Could not copy automatically. Share: ${url}`,
+        })
+      );
+    }
+  }, [dispatch, groupId]);
 
   useEffect(() => {
     if (!socket || !groupId) {
@@ -273,7 +483,7 @@ export function GroupDetailPage({ user }) {
       <div className={styles.wrap}>
         <div className={styles.pageError}>
           <p className={styles.err}>{err}</p>
-          <Link to="/groups" className={styles.back}>
+          <Link to="/groups" className={styles.backLink}>
             <BackArrowIcon />
             All groups
           </Link>
@@ -287,140 +497,416 @@ export function GroupDetailPage({ user }) {
 
   const g = detail.group;
   const d = detail;
+  const creator = d.members?.find((m) => m.uid === g.createdBy);
+  const creatorName = creator?.name || g.createdBy || "Unknown";
+  const adminMember = d.members?.find((m) => m.role === "admin");
+  const adminName = adminMember?.name || "—";
+  const createdDate =
+    g.createdAt != null
+      ? new Date(g.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+      : "";
+  const memberCount = d.members?.length || 0;
+  const requestCount = d.isAdmin ? d.joinRequests?.length || 0 : 0;
+
+  /** @type {Array<{ id: typeof tab; label: string; badge?: number }>} */
+  const tabs = [{ id: "overview", label: "Overview" }];
+  if (d.isMember) {
+    tabs.push({ id: "chat", label: "Chat" });
+  }
+  tabs.push({ id: "members", label: "Members", badge: memberCount });
+  if (d.isAdmin) {
+    tabs.push({ id: "requests", label: "Requests", badge: requestCount });
+  }
+  if (d.isMember) {
+    tabs.push({ id: "player", label: "Player" });
+  }
 
   return (
     <div className={styles.wrap}>
-      {err ? <p className={styles.err}>{err}</p> : null}
+      {err && <p className={styles.errBanner}>{err}</p>}
 
-      <section className={styles.card}>
-        <div className={styles.groupHead}>
-          <div className={styles.groupHeadMain}>
-            <h1 className={styles.title}>{g.name}</h1>
-            {g.description ? <p className={styles.desc}>{g.description}</p> : null}
-          </div>
-          <Link to="/groups" className={styles.back}>
-            <BackArrowIcon />
-            All groups
-          </Link>
-        </div>
-        <div className={styles.memTop}>
-          <div className={styles.cardHeadRow}>
-            <h2 className={styles.cardTitle}>Members ({d.members?.length || 0})</h2>
-            <div className={styles.cardHeadActions}>
-              {!d.isMember && !d.hasPendingRequest ? (
-                <button type="button" className={styles.primary} onClick={() => void onJoin()}>
-                  Request to join
-                </button>
-              ) : null}
-              {!d.isMember && d.hasPendingRequest ? (
-                <p className={styles.pendingInline}>Your request is pending admin approval.</p>
-              ) : null}
-              {d.isMember ? (
-                <p className={styles.badgeIn}>
-                  You’re a member
-                  {d.isAdmin ? " · Admin" : ""}
+      <nav className={styles.tabs} role="tablist" aria-label="Group sections">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={tab === t.id ? styles.tabActive : styles.tab}
+            onClick={() => setTab(t.id)}
+          >
+            <span>{t.label}</span>
+            {t.badge != null ? (
+              <span className={t.badge > 0 && t.id === "requests" ? styles.tabBadgeAlert : styles.tabBadge} aria-hidden>
+                {t.badge > 99 ? "99+" : t.badge}
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </nav>
+
+      <div className={styles.body}>
+        {tab === "overview" && (
+          <div className={styles.overviewStack}>
+            <section className={styles.overviewHero} aria-labelledby="group-overview-title">
+              <div className={styles.overviewHeroBar}>
+                <Link to="/groups" className={styles.backCircle} title="Back to groups" aria-label="Back to groups">
+                  <BackArrowIcon />
+                </Link>
+                <div className={styles.overviewHeroActions}>
+                  <div className={styles.overviewHeroActionsScroll}>
+                    <button
+                      type="button"
+                      className={styles.iconBtn}
+                      onClick={() => {
+                        if (d.isAdmin) {
+                          setTab("requests");
+                        } else {
+                          dispatch(addToast({ type: "info", message: "No group alerts right now." }));
+                        }
+                      }}
+                      aria-label={d.isAdmin ? `Join requests${requestCount ? `, ${requestCount} pending` : ""}` : "Notifications"}
+                    >
+                      <IconBell />
+                      {d.isAdmin && requestCount > 0 ? (
+                        <span className={styles.notifBadge}>{requestCount > 99 ? "99+" : requestCount}</span>
+                      ) : null}
+                    </button>
+
+                    {!d.isMember && !d.hasPendingRequest && (
+                      <button type="button" className={styles.btnPrimarySm} onClick={() => void onJoin()}>
+                        Request to join
+                      </button>
+                    )}
+                    {!d.isMember && d.hasPendingRequest && <span className={styles.pendingTag}>Pending</span>}
+                  </div>
+
+                  <div className={styles.moreWrap} ref={moreWrapRef}>
+                    <button
+                      type="button"
+                      className={styles.iconBtn}
+                      aria-expanded={moreOpen}
+                      aria-haspopup="true"
+                      aria-label="More options"
+                      onClick={() => setMoreOpen((v) => !v)}
+                    >
+                      <IconMore />
+                    </button>
+                    {moreOpen && (
+                      <div className={styles.moreMenu} role="menu">
+                        {d.isMember ? (
+                          <>
+                            <button type="button" className={styles.moreItem} role="menuitem" onClick={() => void onInvite()}>
+                              <IconInvite />
+                              Invite members
+                            </button>
+                            <button type="button" className={styles.moreItem} role="menuitem" onClick={() => void onLeave()}>
+                              Leave group
+                            </button>
+                            {d.isAdmin ? (
+                              <button type="button" className={styles.moreItemDanger} role="menuitem" onClick={() => void onCloseGroup()}>
+                                Delete group
+                              </button>
+                            ) : null}
+                          </>
+                        ) : (
+                          <Link to="/groups" className={styles.moreItem} role="menuitem" onClick={() => setMoreOpen(false)}>
+                            All groups
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.overviewHeroRow}>
+                {g.logoUrl && <GroupHeaderLogo url={g.logoUrl} imgClassName={styles.overviewLogo} />}
+                <div className={styles.overviewHeroText}>
+                  <h1 id="group-overview-title" className={styles.overviewTitle}>
+                    {g.name}
+                  </h1>
+                  <p className={styles.overviewSub}>
+                    {memberCount} {memberCount === 1 ? "member" : "members"}
+                    <span className={styles.metaSep}> · </span>
+                    Admin: {adminName}
+                  </p>
+                  <p className={styles.overviewMeta}>
+                    Created {createdDate || "—"}
+                    <span className={styles.metaSep}> · </span>
+                    Created by {creatorName}
+                  </p>
+                  {!d.isMember ? (
+                    <p className={styles.overviewMembership}>
+                      {d.hasPendingRequest
+                        ? "Your join request is pending admin approval."
+                        : "You’re not a member yet — use Request to join at the top of this card."}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+
+            <div className={styles.overviewGrid}>
+              <section className={styles.panel}>
+                <h2 className={styles.panelTitle}>About</h2>
+                <p className={styles.panelBody}>{g.description || "No description yet."}</p>
+              </section>
+
+            <section className={styles.panel}>
+              <h2 className={styles.panelTitle}>Group activity</h2>
+              {d.isAdmin && d.joinRequests?.length > 0 ? (
+                <ul className={styles.activityList}>
+                  {d.joinRequests.slice(0, 4).map((r) => (
+                    <li key={r.uid} className={styles.activityRow}>
+                      <span className={styles.activityAvatar} aria-hidden>
+                        {memberInitials(r.name, r.uid)}
+                      </span>
+                      <div className={styles.activityMain}>
+                        <span className={styles.activityText}>
+                          <strong>{r.name || r.uid}</strong> requested to join
+                        </span>
+                        <span className={styles.activityTime}>{formatRelativeShort(r.requestedAt)}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={styles.panelMuted}>
+                  {d.isMember ? "No pending join requests right now." : "Join the group to see updates here."}
                 </p>
-              ) : null}
-              {d.isMember && d.isAdmin ? (
-                <button type="button" className={styles.danger} onClick={() => void onCloseGroup()}>
-                  Close group
+              )}
+              {d.isAdmin && requestCount > 0 && (
+                <button type="button" className={styles.linkish} onClick={() => setTab("requests")}>
+                  View all requests
                 </button>
-              ) : null}
-              {d.isMember && !d.isAdmin ? (
-                <button type="button" className={styles.danger} onClick={() => void onLeave()}>
-                  Leave group
+              )}
+            </section>
+
+            {d.isAdmin && (
+              <section className={`${styles.panel} ${styles.adminPanel}`}>
+                <h2 className={styles.panelTitle}>Admin controls</h2>
+                <div className={styles.adminBtnGrid}>
+                  <button type="button" className={styles.adminBtn} onClick={() => setTab("members")}>
+                    Manage members
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.adminBtn}
+                    onClick={() => dispatch(addToast({ type: "info", message: "Group settings are coming soon." }))}
+                  >
+                    Group settings
+                  </button>
+                  <button type="button" className={styles.adminBtn} onClick={() => setTab("requests")}>
+                    Manage requests
+                    {requestCount > 0 ? <span className={styles.inlineBadge}>{requestCount}</span> : null}
+                  </button>
+                  <button type="button" className={styles.adminBtnDanger} onClick={() => void onCloseGroup()}>
+                    Delete group
+                  </button>
+                </div>
+              </section>
+            )}
+            </div>
+          </div>
+        )}
+
+        {tab === "members" && (
+          <section className={styles.tabSection}>
+            <div className={styles.sectionHead}>
+              <h2 className={styles.sectionTitle}>Members</h2>
+              <span className={styles.countBadge}>{memberCount}</span>
+              {d.isMember ? (
+                <button type="button" className={styles.inviteChip} onClick={() => void onInvite()}>
+                  <IconInvite />
+                  Invite
                 </button>
               ) : null}
             </div>
-          </div>
-          {d.isAdmin && d.joinRequests?.length > 0 ? (
-            <>
-              <h3 className={styles.cardSubTitle}>Join requests</h3>
+            <ul className={styles.memList}>
+              {d.members?.map((m) => (
+                <li key={m.uid} className={styles.memRow}>
+                  <span className={styles.memAvatar} aria-hidden>
+                    {memberInitials(m.name, m.uid)}
+                  </span>
+                  <div className={styles.memMain}>
+                    <span className={styles.memName}>{m.name}</span>
+                    {m.role === "admin" ? (
+                      <span className={styles.adminBadge}>Admin</span>
+                    ) : (
+                      <span className={styles.memberBadge}>Member</span>
+                    )}
+                  </div>
+                  {d.isAdmin && m.uid !== user?.uid ? (
+                    <button type="button" className={styles.linkBtn} onClick={() => void remove(m.uid)}>
+                      Remove
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            {memberCount > 8 ? (
+              <p className={styles.mutedFoot}>Showing all {memberCount} members.</p>
+            ) : null}
+          </section>
+        )}
+
+        {tab === "requests" && d.isAdmin && (
+          <section className={styles.tabSection}>
+            <div className={styles.sectionHead}>
+              <h2 className={styles.sectionTitle}>Join requests</h2>
+              <span className={styles.countBadge}>{requestCount}</span>
+            </div>
+            {d.joinRequests?.length > 0 ? (
               <ul className={styles.reqList}>
                 {d.joinRequests.map((r) => (
                   <li key={r.uid} className={styles.reqItem}>
-                    <span className={styles.reqName}>{r.name || r.uid}</span>
+                    <div className={styles.reqMain}>
+                      <span className={styles.reqAvatar} aria-hidden>
+                        {memberInitials(r.name, r.uid)}
+                      </span>
+                      <div>
+                        <span className={styles.reqName}>{r.name || r.uid}</span>
+                        <span className={styles.reqSub}>Requested {formatRelativeShort(r.requestedAt)}</span>
+                      </div>
+                    </div>
                     <div className={styles.reqActions}>
-                      <button type="button" className={styles.small} onClick={() => void accept(r.uid)}>
-                        Accept
+                      <button type="button" className={styles.iconAccept} title="Accept" onClick={() => void accept(r.uid)} aria-label="Accept">
+                        <IconCheck />
                       </button>
-                      <button type="button" className={styles.smallMuted} onClick={() => void reject(r.uid)}>
-                        Reject
+                      <button type="button" className={styles.iconDecline} title="Decline" onClick={() => void reject(r.uid)} aria-label="Decline">
+                        <IconX />
                       </button>
                     </div>
                   </li>
                 ))}
               </ul>
-            </>
-          ) : null}
-        </div>
+            ) : (
+              <p className={styles.panelMuted}>No pending requests.</p>
+            )}
+          </section>
+        )}
 
-        <ul className={styles.memList}>
-          {d.members?.map((m) => (
-            <li key={m.uid} className={styles.memRow}>
-              <span className={styles.memAvatar} aria-hidden>
-                {memberInitials(m.name, m.uid)}
-              </span>
-              <div className={styles.memMain}>
-                <span className={styles.memName}>{m.name}</span>
-                {m.role === "admin" ? <span className={styles.adminBadge}>Admin</span> : null}
-              </div>
-              {d.isAdmin && m.uid !== user?.uid ? (
-                <button type="button" className={styles.linkBtn} onClick={() => void remove(m.uid)}>
-                  Remove
-                </button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {d.isMember ? (
-        <section className={styles.card}>
-          <GroupYouTubePlayer
-            key={groupId}
-            groupId={groupId}
-            socket={socket}
-            isAdmin={!!d.isAdmin}
-            initialPlayer={d.player}
-            user={user}
-          />
-        </section>
-      ) : null}
-
-      {d.isMember ? (
-        <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Chat</h2>
-          {msgErr ? <p className={styles.err}>{msgErr}</p> : null}
-          <div className={styles.chatLog} ref={logRef}>
-            {messages.map((m) => {
-              const mine = m.fromUid === user?.uid;
-              return (
-                <div key={m.id} className={`${styles.msg} ${mine ? styles.msgMine : styles.msgThem}`}>
-                  <div className={styles.msgBubble}>
-                    <span className={styles.msgAuthor}>{m.fromName}</span>
-                    <p className={styles.msgText}>{m.text}</p>
-                    <time className={styles.msgAt} dateTime={m.createdAt || undefined}>
-                      {m.createdAt ? new Date(m.createdAt).toLocaleString() : ""}
-                    </time>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <form onSubmit={send} className={styles.chatForm}>
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              maxLength={2000}
-              placeholder="Message the group…"
+        {tab === "chat" && d.isMember && (
+          <section className={styles.tabSection}>
+            <GroupChatPanel
+              styles={styles}
+              messages={messages}
+              user={user}
+              msgErr={msgErr}
+              text={text}
+              setText={setText}
+              send={send}
+              logRef={logRef}
+              disabled={!d.isMember}
+              variant="page"
             />
-            <button type="submit" className={styles.primary} disabled={!text.trim()}>
-              Send
-            </button>
-          </form>
-        </section>
-      ) : null}
+          </section>
+        )}
+
+        {tab === "player" && d.isMember && (
+          <div className={styles.playerDashboard}>
+            <div className={styles.dashPlayer}>
+              <div className={styles.dashCard}>
+                <GroupYouTubePlayer
+                  key={groupId}
+                  groupId={groupId}
+                  socket={socket}
+                  isAdmin={!!d.isAdmin}
+                  initialPlayer={d.player}
+                  user={user}
+                  layout="dashboard"
+                />
+              </div>
+            </div>
+
+            <aside className={styles.dashChat}>
+              <GroupChatPanel
+                styles={styles}
+                messages={messages}
+                user={user}
+                msgErr={msgErr}
+                text={text}
+                setText={setText}
+                send={send}
+                logRef={logRef}
+                disabled={!d.isMember}
+                variant="aside"
+              />
+            </aside>
+
+            <div className={styles.dashBottom}>
+              <section className={styles.previewCard}>
+                <div className={styles.previewHead}>
+                  <h2 className={styles.previewTitle}>Members</h2>
+                  <span className={styles.countBadgeMuted}>{memberCount}</span>
+                  <button type="button" className={styles.inviteChip} onClick={() => void onInvite()}>
+                    <IconInvite />
+                    Invite
+                  </button>
+                </div>
+                <ul className={styles.previewList}>
+                  {(d.members || []).slice(0, 5).map((m) => (
+                    <li key={m.uid} className={styles.previewRow}>
+                      <span className={styles.previewAvatar} aria-hidden>
+                        {memberInitials(m.name, m.uid)}
+                      </span>
+                      <span className={styles.previewName}>{m.name}</span>
+                      {m.role === "admin" ? <span className={styles.adminTxt}>Admin</span> : <span className={styles.memberTxt}>Member</span>}
+                    </li>
+                  ))}
+                </ul>
+                <button type="button" className={styles.previewLink} onClick={() => setTab("members")}>
+                  View all members
+                </button>
+              </section>
+
+              {d.isAdmin ? (
+                <section className={styles.previewCard}>
+                  <div className={styles.previewHead}>
+                    <h2 className={styles.previewTitle}>Join requests</h2>
+                    <span className={styles.countBadgeMuted}>{requestCount}</span>
+                  </div>
+                  {d.joinRequests?.length > 0 ? (
+                    <>
+                      <ul className={styles.previewList}>
+                        {d.joinRequests.slice(0, 3).map((r) => (
+                          <li key={r.uid} className={styles.previewReqRow}>
+                            <span className={styles.previewAvatar} aria-hidden>
+                              {memberInitials(r.name, r.uid)}
+                            </span>
+                            <div className={styles.previewReqMain}>
+                              <span className={styles.previewName}>{r.name || r.uid}</span>
+                              <span className={styles.reqSubInline}>Requested {formatRelativeShort(r.requestedAt)}</span>
+                            </div>
+                            <div className={styles.previewReqActions}>
+                              <button type="button" className={styles.iconAccept} onClick={() => void accept(r.uid)} aria-label="Accept">
+                                <IconCheck />
+                              </button>
+                              <button type="button" className={styles.iconDecline} onClick={() => void reject(r.uid)} aria-label="Decline">
+                                <IconX />
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                      <button type="button" className={styles.previewLink} onClick={() => setTab("requests")}>
+                        View all requests
+                      </button>
+                    </>
+                  ) : (
+                    <p className={styles.panelMuted}>No pending requests.</p>
+                  )}
+                </section>
+              ) : (
+                <section className={styles.previewCardMuted}>
+                  <p className={styles.panelMuted}>Join requests are visible to group admins.</p>
+                </section>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

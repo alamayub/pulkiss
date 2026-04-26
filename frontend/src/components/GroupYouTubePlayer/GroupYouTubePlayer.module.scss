@@ -123,7 +123,9 @@
 }
 
 /* Hover / focus-visible; data-tooltip avoids native title tooltip overlap. */
-.adminBar [data-tooltip] {
+.adminBar [data-tooltip],
+.adminBarDash [data-tooltip],
+.qRowActionsDash [data-tooltip] {
   position: relative;
   z-index: 0;
 
@@ -353,4 +355,328 @@
 
 .liveRow .badge {
   margin-left: 0;
+}
+
+/* ——— Dashboard layout (group room / group_info player column) ——— */
+.rootDashboard {
+  gap: 1.15rem;
+}
+
+.dashMedia {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, #6d28d9 12%);
+  background: color-mix(in srgb, #0a0612 88%, var(--surface));
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+}
+
+.playerWrapDashboard {
+  position: relative;
+  width: 100%;
+  background: #000;
+}
+
+.mediaOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  padding: 0.55rem 0.75rem;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.72) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.mediaOverlayText {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #faf5ff;
+  background: rgba(12, 6, 24, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.playerElDashboard {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: min(56vh, 32rem);
+  min-height: 10rem;
+}
+
+.dashDeck {
+  padding: 1rem 1.1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: color-mix(in srgb, var(--surface) 94%, #1e1b4b 6%);
+  border-top: 1px solid color-mix(in srgb, var(--border) 85%, #7c3aed 8%);
+}
+
+.controlRowDash {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+  width: 100%;
+  padding-top: 0.15rem;
+}
+
+.adminBarDash {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.progressRowDash {
+  /* share one row with .adminBarDash; width from .progressRow flex, not full-width column */
+  width: auto;
+
+  .tLeft {
+    color: var(--text);
+  }
+
+  .range {
+    background: linear-gradient(
+      90deg,
+      #7c3aed 0%,
+      #7c3aed var(--fill, 0%),
+      color-mix(in srgb, var(--border) 55%, #1e1b4b) var(--fill, 0%)
+    );
+
+    &::-moz-range-progress {
+      background: #7c3aed;
+    }
+
+    &::-moz-range-track {
+      background: color-mix(in srgb, var(--border) 55%, #1e1b4b);
+    }
+  }
+
+  .readonlyTrack {
+    background: color-mix(in srgb, var(--border) 50%, transparent);
+  }
+
+  .readonlyFill {
+    background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+    border-radius: 3px;
+  }
+}
+
+.queueCard {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 96%, var(--bg));
+  overflow: hidden;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.06);
+
+  :global(html[data-theme="dark"]) & {
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
+  }
+}
+
+.queueHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, #ede9fe 12%);
+
+  :global(html[data-theme="dark"]) & {
+    background: color-mix(in srgb, var(--surface) 92%, #1e1b4b 8%);
+  }
+}
+
+.queueTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.queueBadge {
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.queueAddForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1 1 14rem;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.queueUrlInput {
+  flex: 1 1 10rem;
+  min-width: 0;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86rem;
+
+  &:focus {
+    outline: none;
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.12);
+  }
+}
+
+.btnAddLink {
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  box-shadow: 0 3px 12px rgba(124, 58, 237, 0.3);
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.queueHint {
+  margin: 0;
+  padding: 0.5rem 0.9rem 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.queueListDash {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  overflow: visible;
+}
+
+.queueEmpty {
+  margin: 0;
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.qRowDash {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--surface) 92%, var(--bg));
+}
+
+.qIdx {
+  width: 1.35rem;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.qThumb {
+  width: 4.5rem;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: #000;
+}
+
+.qBodyDash {
+  flex: 1 1 8rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.qVidId {
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  color: var(--text);
+}
+
+.qByLine {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.nowPlayingMark {
+  font-size: 1rem;
+  color: #22c55e;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.5));
+}
+
+.nowPlayingSpacer {
+  width: 1rem;
+  flex-shrink: 0;
+}
+
+.qRowActionsDash {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.qDashActionBtn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+}
+
+.iconBtn.qDashActionBtnDanger {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.4);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 22%, transparent);
+    border-color: rgba(248, 113, 113, 0.55);
+    color: #fff;
+  }
 }

@@ -11,6 +11,7 @@ import { GroupsListPage } from "./pages/GroupsListPage/GroupsListPage";
 import { GroupDetailPage } from "./pages/GroupDetailPage/GroupDetailPage";
 import { AboutPage } from "./pages/AboutPage/AboutPage";
 import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage/PrivacyPolicyPage";
+import { TermsOfUsePage } from "./pages/TermsOfUsePage/TermsOfUsePage";
 import { ProfilePage } from "./pages/ProfilePage/ProfilePage";
 import { canAccessUserManagement, isAdminEmail } from "./lib/admin";
 import styles from "./App.module.scss";
@@ -34,6 +35,7 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route path="/about" element={<AboutPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfUsePage />} />
           <Route path="/" element={!ready ? <AuthLoadingScreen /> : !user ? <AuthPage /> : <RoomPage user={user} />} />
           <Route
             path="/admin"
